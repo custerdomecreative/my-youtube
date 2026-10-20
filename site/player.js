@@ -75,3 +75,14 @@ function makePlayer(v) {
   player.append(playBtn);
   return player;
 }
+
+// Opens the video in the YouTube Music app, which plays in the background
+// and with the screen locked (a Premium perk the web player doesn't get).
+// Shown on touch devices only; see .music-link in style.css.
+function musicLink(v) {
+  return el("a", {
+    className: "tick music-link", textContent: "♫ YT Music",
+    href: `https://music.youtube.com/watch?v=${v.id}`, target: "_blank", rel: "noopener",
+    title: "Play in YouTube Music (works with the screen locked)",
+  });
+}

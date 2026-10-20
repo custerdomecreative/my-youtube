@@ -127,3 +127,6 @@ body.no-scroll { overflow: hidden; }
   border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap;
 }
 .update-btn:disabled { color: var(--muted); cursor: default; }
+/* "YT Music" link: only on touch devices, where background play matters */
+.music-link { text-decoration: none; text-align: center; }
+@media (hover: hover) and (pointer: fine) { .music-link { display: none; } }

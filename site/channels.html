@@ -87,7 +87,7 @@
           el("p", { className: "title", textContent: v.title }),
           el("div", { className: "sub", textContent: meta }),
         ]),
-        el("div", { className: "actions" }, [laterBtn, tick]),
+        el("div", { className: "actions" }, [laterBtn, tick, musicLink(v)]),
       ]),
     ]);
     function paint() {
