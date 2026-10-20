@@ -81,6 +81,20 @@
   /* Invisible strip over the embedded player's title bar, so tapping the
      title or channel icon doesn't open YouTube. Controls stay usable. */
   .player .shield { position: absolute; top: 0; left: 0; right: 0; height: min(64px, 24%); z-index: 2; }
+  .player .fs {
+    position: absolute; top: 8px; right: 8px; z-index: 3; width: 38px; height: 38px;
+    border: 0; border-radius: 10px; background: rgba(0, 0, 0, 0.6); color: #fff;
+    font-size: 20px; line-height: 1; cursor: pointer; display: grid; place-items: center;
+  }
+  /* Real fullscreen (desktop, iPad) and the fallback used on iPhone. */
+  .player:fullscreen, .player.pseudo-fs { aspect-ratio: auto; width: 100%; height: 100%; background: #000; }
+  .player.pseudo-fs {
+    position: fixed; inset: 0; z-index: 1000; border-radius: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .player:fullscreen .shield, .player.pseudo-fs .shield { height: 80px; }
+  .player.pseudo-fs .shield { top: env(safe-area-inset-top); }
+  body.no-scroll { overflow: hidden; }
   .meta { padding: 12px 14px 14px; display: flex; gap: 12px; align-items: flex-start; }
   .text { flex: 1; min-width: 0; }
   .title { font-weight: 600; margin: 0 0 4px; font-size: 16px; }
@@ -169,6 +183,37 @@
   const byChannel = list => channel ? list.filter(v => v.channel === channel) : list;
   const belongs = v => inView(view).some(x => x.id === v.id) && (!channel || v.channel === channel);
 
+  function setFsIcon(btn, on) {
+    btn.textContent = on ? "✕" : "⤢";
+    btn.ariaLabel = on ? "Exit fullscreen" : "Fullscreen";
+  }
+  function toggleFullscreen(player, btn) {
+    if (player.classList.contains("pseudo-fs")) {
+      player.classList.remove("pseudo-fs"); document.body.classList.remove("no-scroll");
+      return setFsIcon(btn, false);
+    }
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      return (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    }
+    const pseudo = () => {
+      player.classList.add("pseudo-fs"); document.body.classList.add("no-scroll"); setFsIcon(btn, true);
+    };
+    const request = player.requestFullscreen || player.webkitRequestFullscreen;
+    if (!request) return pseudo();  // iPhone: no fullscreen API for page elements
+    try {
+      const result = request.call(player);
+      if (result && result.catch) result.catch(pseudo);
+    } catch (e) { pseudo(); }
+  }
+  ["fullscreenchange", "webkitfullscreenchange"].forEach(evt => document.addEventListener(evt, () => {
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    document.querySelectorAll(".player .fs").forEach(b => setFsIcon(b, b.parentElement === fsEl));
+  }));
+  document.addEventListener("keydown", e => {
+    const open = document.querySelector(".player.pseudo-fs");
+    if (e.key === "Escape" && open) toggleFullscreen(open, open.querySelector(".fs"));
+  });
+
   function card(v) {
     const player = el("div", { className: "player" });
     const playBtn = el("button", { ariaLabel: `Play ${v.title}` }, [
@@ -179,11 +224,15 @@
       // rel=0 limits end-screen suggestions to the same channel.
       // youtube.com (not youtube-nocookie.com) so a signed-in Premium
       // session can apply where the browser shares YouTube's cookies.
-      const src = `https://www.youtube.com/embed/${v.id}?autoplay=1&rel=0&playsinline=1&modestbranding=1`;
+      // fs=0 hides YouTube's own fullscreen button; ours (below) makes the
+      // whole player box fullscreen so the title-bar shield comes along.
+      const src = `https://www.youtube.com/embed/${v.id}?autoplay=1&rel=0&playsinline=1&modestbranding=1&fs=0`;
+      const fsBtn = el("button", { className: "fs", ariaLabel: "Fullscreen", textContent: "⤢" });
+      fsBtn.addEventListener("click", () => toggleFullscreen(player, fsBtn));
       player.replaceChildren(el("iframe", {
-        src, title: v.title, allowFullscreen: true,
-        allow: "autoplay; encrypted-media; picture-in-picture; fullscreen",
-      }), el("div", { className: "shield", ariaHidden: "true" }));
+        src, title: v.title,
+        allow: "autoplay; encrypted-media; picture-in-picture",
+      }), el("div", { className: "shield", ariaHidden: "true" }), fsBtn);
     });
     player.append(playBtn);
 
