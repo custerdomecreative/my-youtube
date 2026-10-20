@@ -1,5 +1,5 @@
 [
-  { "name": "BBC News", "url": "https://feeds.bbci.co.uk/news/rss.xml", "fulltext": true },
+  { "name": "BBC World", "url": "https://feeds.bbci.co.uk/news/world/rss.xml", "fulltext": true },
   { "name": "BBC Sport", "url": "https://feeds.bbci.co.uk/sport/rss.xml", "fulltext": true },
   { "name": "RTÉ News", "url": "https://www.rte.ie/feeds/rss/?index=/news/", "fulltext": true },
   { "name": "The Journal", "url": "https://www.thejournal.ie/feed/", "fulltext": true },
