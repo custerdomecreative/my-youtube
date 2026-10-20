@@ -6,7 +6,7 @@ No algorithm, no recommendations, no search.
 ## How it works
 
 - `channels.json` lists the channels.
-- Twice a day, a GitHub Action runs `scripts/fetch_feeds.py`, which reads each
+- Every 2 hours during the day, a GitHub Action runs `scripts/fetch_feeds.py`, which reads each
   channel's public YouTube feed (long-form uploads only, no Shorts) and builds the page.
 - The page is published with GitHub Pages. Videos play embedded on the page.
 - "Mark watched" ticks are stored on your device.
