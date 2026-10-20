@@ -93,6 +93,13 @@
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   .player:fullscreen .shield, .player.pseudo-fs .shield { height: 80px; }
+  /* Bottom-right shield over the YouTube logo. With fs=0 the logo is the
+     last button on the right, so this stays clear of settings and captions. */
+  .player .shield-logo { top: auto; left: auto; bottom: 0; right: 0; width: 76px; height: 40px; }
+  .player:fullscreen .shield-logo, .player.pseudo-fs .shield-logo { width: 100px; height: 50px; top: auto; }
+  .player.pseudo-fs .shield-logo { bottom: env(safe-area-inset-bottom); right: env(safe-area-inset-right); }
+  /* Add ?debug to the page address to see where the shields sit. */
+  body.debug .shield { background: rgba(255, 0, 0, 0.35); }
   .player.pseudo-fs .shield { top: env(safe-area-inset-top); }
   body.no-scroll { overflow: hidden; }
   .meta { padding: 12px 14px 14px; display: flex; gap: 12px; align-items: flex-start; }
@@ -138,6 +145,7 @@
 
 <script>
   // Everything here is stored on this device only.
+  if (/[?&]debug\b/.test(location.search)) document.body.classList.add("debug");
   const KEYS = { watched: "watched-v1", later: "later-v1", channel: "channel-v1" };
   const load = (key, fallback) => {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
@@ -232,7 +240,8 @@
       player.replaceChildren(el("iframe", {
         src, title: v.title,
         allow: "autoplay; encrypted-media; picture-in-picture",
-      }), el("div", { className: "shield", ariaHidden: "true" }), fsBtn);
+      }), el("div", { className: "shield", ariaHidden: "true" }),
+        el("div", { className: "shield shield-logo", ariaHidden: "true" }), fsBtn);
     });
     player.append(playBtn);
 
