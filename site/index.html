@@ -82,6 +82,7 @@
   .text { flex: 1; min-width: 0; }
   .title { font-weight: 600; margin: 0 0 4px; font-size: 16px; }
   .sub { color: var(--muted); font-size: 13px; }
+  .applink { color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
   .tick {
     flex: none; border: 1px solid var(--line); background: transparent; color: var(--ink);
     border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
@@ -144,7 +145,9 @@
     ]);
     playBtn.addEventListener("click", () => {
       // rel=0 limits end-screen suggestions to the same channel.
-      const src = `https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1&rel=0&playsinline=1&modestbranding=1`;
+      // youtube.com (not youtube-nocookie.com) so a signed-in Premium
+      // session can apply where the browser shares YouTube's cookies.
+      const src = `https://www.youtube.com/embed/${v.id}?autoplay=1&rel=0&playsinline=1&modestbranding=1`;
       player.replaceChildren(el("iframe", {
         src, title: v.title, allowFullscreen: true,
         allow: "autoplay; encrypted-media; picture-in-picture; fullscreen",
@@ -158,7 +161,11 @@
       el("div", { className: "meta" }, [
         el("div", { className: "text" }, [
           el("p", { className: "title", textContent: v.title }),
-          el("div", { className: "sub", textContent: `${v.channel} · ${ago(v.published)}` }),
+          el("div", { className: "sub" }, [
+            document.createTextNode(`${v.channel} · ${ago(v.published)} · `),
+            el("a", { className: "applink", href: `https://www.youtube.com/watch?v=${v.id}`,
+                      textContent: "Open in YouTube", target: "_blank", rel: "noopener" }),
+          ]),
         ]),
         tick,
       ]),
