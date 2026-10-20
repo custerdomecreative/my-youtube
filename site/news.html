@@ -76,6 +76,7 @@
       </div>
       <select class="channel-filter" id="source" aria-label="Filter by source"></select>
     </div>
+      <div class="bulk" id="bulk" hidden><button class="tick" id="mark-all"></button></div>
     <div class="warn" id="warn" hidden></div>
     <main class="list" id="list"></main>
     <button class="lock" id="lock">Lock this device</button>
@@ -251,6 +252,7 @@
 
   function counts() {
     for (const name of ["new", "later", "all"]) $(`count-${name}`).textContent = bySource(inView(name)).length;
+    updateBulk();
   }
   function buildSourceMenu() {
     const names = [...new Set([...stories, ...later].map(s => s.source))].sort();
@@ -274,12 +276,38 @@
     }
     $("list").replaceChildren(...shown.map(card));
   }
+
+  // "Mark all" on the New tab, for whatever the filter is showing.
+  // Turns into Undo for a few seconds afterwards.
+  let undo = null, undoTimer = null;
+  function clearUndo() { undo = null; clearTimeout(undoTimer); }
+  function updateBulk() {
+    const bulk = document.getElementById("bulk"), btn = document.getElementById("mark-all");
+    if (undo) { bulk.hidden = false; btn.textContent = `Undo — marked ${undo.length} as read`; return; }
+    const n = view === "new" ? bySource(inView("new")).length : 0;
+    bulk.hidden = !n;
+    btn.textContent = n === 1 ? "Mark as read" : `Mark all ${n} as read`;
+  }
+  document.getElementById("mark-all").addEventListener("click", () => {
+    if (undo) {
+      undo.forEach(id => read.delete(id));
+      clearUndo();
+    } else {
+      undo = bySource(inView("new")).map(x => x.id);
+      undo.forEach(id => read.add(id));
+      undoTimer = setTimeout(() => { undo = null; updateBulk(); }, 8000);
+    }
+    saveState();
+    render();
+  });
+
   document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
     view = btn.dataset.view;
+    clearUndo();
     document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
     render();
   }));
-  $("source").addEventListener("change", e => { source = e.target.value; store(KEYS.source, source); render(); });
+  $("source").addEventListener("change", e => { clearUndo(); source = e.target.value; store(KEYS.source, source); render(); });
 
   function start(data) {
     stories = data.stories || [];

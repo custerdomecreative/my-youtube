@@ -117,3 +117,6 @@ body.no-scroll { overflow: hidden; }
 .switch a { color: var(--muted); text-decoration: none; font-size: 14px; padding: 5px 14px; border-radius: 999px; }
 .switch a[aria-current="page"] { background: var(--ink); color: var(--bg); }
 
+/* "Mark all" row above the list */
+.bulk { display: flex; justify-content: flex-end; margin: -6px 0 14px; }
+.bulk[hidden] { display: none; }
