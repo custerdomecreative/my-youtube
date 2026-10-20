@@ -16,7 +16,7 @@
 </head>
 <body>
 <div class="wrap">
-  <nav class="switch" aria-label="Sections"><a href="./" aria-current="page">Videos</a><a href="news.html">News</a></nav>
+  <nav class="switch" aria-label="Sections"><a href="./" aria-current="page">Videos</a><a href="channels.html">Channels</a><a href="news.html">News</a></nav>
   <header>
     <h1>Watch List</h1>
     <div class="updated" id="updated"></div>
@@ -34,9 +34,9 @@
   <main class="list" id="list"></main>
 </div>
 
+<script src="player.js"></script>
 <script>
   // Everything here is stored on this device only.
-  if (/[?&]debug\b/.test(location.search)) document.body.classList.add("debug");
   const KEYS = { watched: "watched-v1", later: "later-v1", channel: "channel-v1" };
   const load = (key, fallback) => {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
@@ -57,22 +57,6 @@
     store(KEYS.later, later);
   }
 
-  function ago(iso) {
-    if (!iso) return "";
-    const mins = Math.round((Date.now() - new Date(iso)) / 60000);
-    if (mins < 60) return `${Math.max(mins, 1)} min ago`;
-    const hrs = Math.round(mins / 60);
-    if (hrs < 24) return `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
-    const days = Math.round(hrs / 24);
-    return `${days} day${days === 1 ? "" : "s"} ago`;
-  }
-
-  function el(tag, props = {}, children = []) {
-    const node = Object.assign(document.createElement(tag), props);
-    node.append(...children);
-    return node;
-  }
-
   // Which videos belong in each tab, before the channel filter.
   function inView(name) {
     if (name === "new") return videos.filter(v => !watched.has(v.id) && !isLater(v.id));
@@ -82,59 +66,8 @@
   const byChannel = list => channel ? list.filter(v => v.channel === channel) : list;
   const belongs = v => inView(view).some(x => x.id === v.id) && (!channel || v.channel === channel);
 
-  function setFsIcon(btn, on) {
-    btn.textContent = on ? "✕" : "⤢";
-    btn.ariaLabel = on ? "Exit fullscreen" : "Fullscreen";
-  }
-  function toggleFullscreen(player, btn) {
-    if (player.classList.contains("pseudo-fs")) {
-      player.classList.remove("pseudo-fs"); document.body.classList.remove("no-scroll");
-      return setFsIcon(btn, false);
-    }
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-      return (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-    }
-    const pseudo = () => {
-      player.classList.add("pseudo-fs"); document.body.classList.add("no-scroll"); setFsIcon(btn, true);
-    };
-    const request = player.requestFullscreen || player.webkitRequestFullscreen;
-    if (!request) return pseudo();  // iPhone: no fullscreen API for page elements
-    try {
-      const result = request.call(player);
-      if (result && result.catch) result.catch(pseudo);
-    } catch (e) { pseudo(); }
-  }
-  ["fullscreenchange", "webkitfullscreenchange"].forEach(evt => document.addEventListener(evt, () => {
-    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-    document.querySelectorAll(".player .fs").forEach(b => setFsIcon(b, b.parentElement === fsEl));
-  }));
-  document.addEventListener("keydown", e => {
-    const open = document.querySelector(".player.pseudo-fs");
-    if (e.key === "Escape" && open) toggleFullscreen(open, open.querySelector(".fs"));
-  });
-
   function card(v) {
-    const player = el("div", { className: "player" });
-    const playBtn = el("button", { ariaLabel: `Play ${v.title}` }, [
-      el("img", { src: v.thumbnail, alt: "", loading: "lazy" }),
-      el("span", { className: "play" }),
-    ]);
-    playBtn.addEventListener("click", () => {
-      // rel=0 limits end-screen suggestions to the same channel.
-      // youtube.com (not youtube-nocookie.com) so a signed-in Premium
-      // session can apply where the browser shares YouTube's cookies.
-      // fs=0 hides YouTube's own fullscreen button; ours (below) makes the
-      // whole player box fullscreen so the title-bar shield comes along.
-      const src = `https://www.youtube.com/embed/${v.id}?autoplay=1&rel=0&playsinline=1&modestbranding=1&fs=0`;
-      const fsBtn = el("button", { className: "fs", ariaLabel: "Fullscreen", textContent: "⤢" });
-      fsBtn.addEventListener("click", () => toggleFullscreen(player, fsBtn));
-      player.replaceChildren(el("iframe", {
-        src, title: v.title,
-        allow: "autoplay; encrypted-media; picture-in-picture",
-      }), el("div", { className: "shield shield-title", ariaHidden: "true" }),
-        el("div", { className: "shield shield-logo", ariaHidden: "true" }), fsBtn);
-    });
-    player.append(playBtn);
+    const player = makePlayer(v);
 
     const laterBtn = el("button", { className: "tick later" });
     const tick = el("button", { className: "tick" });
@@ -261,10 +194,8 @@
         warn.textContent = `Couldn't refresh: ${data.errors.join(", ")}`;
         warn.hidden = false;
       }
-      // Forget watched ticks for videos no longer in the feed or saved list.
-      const ids = new Set([...videos, ...later].map(v => v.id));
-      watched = new Set([...watched].filter(id => ids.has(id)));
-      saveState();
+      // Watched ticks are shared with the Channels page, so keep them, capped.
+      if (watched.size > 5000) { watched = new Set([...watched].slice(-5000)); saveState(); }
       buildChannelMenu();
       render();
     })

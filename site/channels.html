@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Channels</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Watch List">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="style.css">
+<style>
+  .channel-list { display: grid; gap: 10px; }
+  .channel-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    color: var(--ink); text-decoration: none; font-weight: 600;
+  }
+  .channel-row span { color: var(--muted); font-weight: 400; font-size: 14px; white-space: nowrap; }
+  .back { display: inline-block; color: var(--muted); text-decoration: none; font-size: 14px; margin-bottom: 6px; }
+  h2 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 18px; }
+  .controls input[type=search], .controls select {
+    font: inherit; font-size: 14px; padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  .controls input[type=search] { flex: 1 1 180px; min-width: 0; }
+  .controls label { font-size: 14px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .more { display: block; margin: 20px auto 0; }
+  .result-count { color: var(--muted); font-size: 13px; margin: -8px 0 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="switch" aria-label="Sections"><a href="./">Videos</a><a href="channels.html" aria-current="page">Channels</a><a href="news.html">News</a></nav>
+  <header>
+    <h1>Channels</h1>
+    <div class="updated" id="updated"></div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<script src="player.js"></script>
+<script>
+  // Watched ticks and Watch Later are shared with the Videos page.
+  const KEYS = { watched: "watched-v1", later: "later-v1", sort: "catalog-sort-v1", hideWatched: "catalog-hide-v1" };
+  const load = (k, fallback) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } };
+  const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  const PAGE = 24;
+
+  let index = null;          // catalog/index.json
+  const loaded = {};         // channel id -> rows
+  let state = { sort: load(KEYS.sort, "newest"), query: "", hideWatched: load(KEYS.hideWatched, false), shown: PAGE };
+
+  // Re-read shared state each time, in case the Videos page changed it.
+  const getWatched = () => new Set(load(KEYS.watched, []));
+  const getLater = () => load(KEYS.later, []);
+
+  function when(iso) {
+    if (!iso) return "";
+    const days = (Date.now() - new Date(iso)) / 86400000;
+    return days < 30 ? ago(iso) : new Date(iso).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" });
+  }
+  function duration(s) {
+    if (!s) return "";
+    const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, sec = String(s % 60).padStart(2, "0");
+    return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+  }
+  function views(n) {
+    if (!n) return "";
+    if (n >= 1e6) return `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}M views`;
+    if (n >= 1e3) return `${(n / 1e3).toFixed(n >= 1e4 ? 0 : 1)}K views`;
+    return `${n} views`;
+  }
+
+  function card(v, meta) {
+    const laterBtn = el("button", { className: "tick later" });
+    const tick = el("button", { className: "tick" });
+    const node = el("article", { className: "card" }, [
+      makePlayer(v),
+      el("div", { className: "meta" }, [
+        el("div", { className: "text" }, [
+          el("p", { className: "title", textContent: v.title }),
+          el("div", { className: "sub", textContent: meta }),
+        ]),
+        el("div", { className: "actions" }, [laterBtn, tick]),
+      ]),
+    ]);
+    function paint() {
+      const w = getWatched().has(v.id), l = getLater().some(x => x.id === v.id);
+      node.classList.toggle("watched", w);
+      tick.textContent = w ? "Watched ✓" : "Mark watched";
+      laterBtn.classList.toggle("on", l);
+      laterBtn.textContent = l ? "Saved ✓" : "Watch later";
+    }
+    laterBtn.addEventListener("click", () => {
+      let later = getLater();
+      if (later.some(x => x.id === v.id)) later = later.filter(x => x.id !== v.id);
+      else {
+        later.push(v);
+        const w = getWatched(); w.delete(v.id); store(KEYS.watched, [...w]);
+      }
+      store(KEYS.later, later);
+      paint();
+    });
+    tick.addEventListener("click", () => {
+      const w = getWatched();
+      if (w.has(v.id)) w.delete(v.id);
+      else { w.add(v.id); store(KEYS.later, getLater().filter(x => x.id !== v.id)); }
+      store(KEYS.watched, [...w]);
+      paint();
+      if (state.hideWatched && w.has(v.id)) node.remove();
+    });
+    paint();
+    return node;
+  }
+
+  function showIndex() {
+    document.title = "Channels";
+    const main = document.getElementById("main");
+    if (!index.configured) {
+      main.replaceChildren(el("div", { className: "empty" }, [
+        el("strong", { textContent: "Not set up yet." }),
+        document.createTextNode("Add the YOUTUBE_API_KEY secret to the repository to browse full channel catalogues."),
+      ]));
+      return;
+    }
+    const rows = index.channels.map(c => el("a", { className: "channel-row", href: `#${c.id}` }, [
+      document.createTextNode(c.name),
+      el("span", { textContent: c.error && !c.count ? "Couldn't load" : `${c.count.toLocaleString()} videos` }),
+    ]));
+    main.replaceChildren(el("div", { className: "channel-list" }, rows));
+  }
+
+  async function showChannel(id) {
+    const info = index.channels.find(c => c.id === id);
+    if (!info) return showIndex();
+    document.title = info.name;
+    const main = document.getElementById("main");
+    main.replaceChildren(el("a", { className: "back", href: "#", textContent: "← All channels" }), el("h2", { textContent: info.name }),
+      el("div", { className: "empty", textContent: "Loading…" }));
+    if (!loaded[id]) {
+      try {
+        const data = await fetch(`catalog/${id}.json`, { cache: "no-store" }).then(r => r.json());
+        loaded[id] = data.videos.map(([vid, title, published, secs, views]) => ({
+          id: vid, title, published, secs, views, channel: info.name,
+          thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+        }));
+      } catch (e) {
+        main.lastChild.textContent = "Couldn't load this channel. Try again in a bit.";
+        return;
+      }
+    }
+    if (location.hash.slice(1) !== id) return;  // navigated away while loading
+
+    const search = el("input", { type: "search", placeholder: "Search this channel", value: state.query, ariaLabel: "Search this channel" });
+    const sort = el("select", { ariaLabel: "Sort" }, [
+      el("option", { value: "newest", textContent: "Newest" }),
+      el("option", { value: "oldest", textContent: "Oldest" }),
+      el("option", { value: "popular", textContent: "Most viewed" }),
+    ]);
+    sort.value = state.sort;
+    const hide = el("input", { type: "checkbox", checked: state.hideWatched });
+    const count = el("div", { className: "result-count" });
+    const list = el("div", { className: "list" });
+    const more = el("button", { className: "tick more", textContent: "Show more" });
+
+    function results() {
+      const q = state.query.trim().toLowerCase();
+      const watched = getWatched();
+      let rows = loaded[id].filter(v => (!q || v.title.toLowerCase().includes(q)) && !(state.hideWatched && watched.has(v.id)));
+      if (state.sort === "oldest") rows = [...rows].reverse();
+      if (state.sort === "popular") rows = [...rows].sort((a, b) => b.views - a.views);
+      return rows;
+    }
+    function draw() {
+      const rows = results();
+      count.textContent = `${rows.length.toLocaleString()} video${rows.length === 1 ? "" : "s"}`;
+      if (!rows.length) {
+        list.replaceChildren(el("div", { className: "empty", textContent: "No videos match." }));
+      } else {
+        list.replaceChildren(...rows.slice(0, state.shown).map(v =>
+          card(v, [when(v.published), duration(v.secs), views(v.views)].filter(Boolean).join(" · "))));
+      }
+      more.hidden = rows.length <= state.shown;
+    }
+    let timer;
+    search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => { state.query = search.value; state.shown = PAGE; draw(); }, 200); });
+    sort.addEventListener("change", () => { state.sort = sort.value; store(KEYS.sort, state.sort); state.shown = PAGE; draw(); });
+    hide.addEventListener("change", () => { state.hideWatched = hide.checked; store(KEYS.hideWatched, state.hideWatched); state.shown = PAGE; draw(); });
+    more.addEventListener("click", () => { state.shown += PAGE; draw(); });
+
+    main.replaceChildren(
+      el("a", { className: "back", href: "#", textContent: "← All channels" }),
+      el("h2", { textContent: info.name }),
+      el("div", { className: "controls" }, [search, sort, el("label", {}, [hide, document.createTextNode("Hide watched")])]),
+      count, list, more);
+    draw();
+  }
+
+  function route() {
+    state.query = ""; state.shown = PAGE;
+    const id = location.hash.slice(1);
+    id ? showChannel(id) : showIndex();
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener("hashchange", route);
+
+  fetch("catalog/index.json", { cache: "no-store" })
+    .then(r => r.json())
+    .then(data => {
+      index = data;
+      if (data.updated) document.getElementById("updated").textContent = `Updated ${ago(data.updated)}`;
+      route();
+    })
+    .catch(() => {
+      document.getElementById("main").replaceChildren(el("div", { className: "empty" }, [
+        el("strong", { textContent: "Couldn't load channels." }), document.createTextNode("Try again in a bit."),
+      ]));
+    });
+</script>
+</body>
+</html>

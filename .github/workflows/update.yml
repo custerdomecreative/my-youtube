@@ -34,6 +34,14 @@ jobs:
           path: .cache
           key: articles-${{ github.run_id }}
           restore-keys: articles-
+      - name: Update channel catalogues
+        # Needs the YOUTUBE_API_KEY secret; skipped quietly without it.
+        continue-on-error: true
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          pip install --quiet requests
+          python scripts/fetch_catalog.py
       - name: Fetch news
         # A news failure shouldn't stop the video page updating.
         continue-on-error: true

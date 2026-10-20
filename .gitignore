@@ -3,3 +3,4 @@ site/news.enc.json
 site/status.json
 .cache/
 __pycache__/
+site/catalog/
