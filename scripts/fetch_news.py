@@ -90,9 +90,23 @@ def image_for(entry) -> str:
     return match.group(1) if match else ""
 
 
-IMAGE_LINE = re.compile(r"^!\[(.*?)\]\((\S+?)\)\s*$")
+IMAGE = re.compile(r"!\[(.*?)\]\((\S+?)\)")
 HEADING_LINE = re.compile(r"^#{1,6}\s+(.*)$")
+LIST_MARKER = re.compile(r"^(?:[-*+]|\d+[.)])\s+")
 JUNK_IMAGE = re.compile(r"placeholder|pixel|spacer|1x1|logo|icon|\.svg|\.gif|^data:", re.I)
+# Page furniture that extraction sometimes keeps: timestamp labels, share
+# buttons, picture credits. Matched against a whole line.
+JUNK_LINE = re.compile(
+    r"^(published|updated|share|save|listen|watch|close|advertisement|related topics|"
+    r"more on this story|top stories|features|most read|getty images|reuters|pa media|epa|afp)\.?$"
+    r"|^(image source|image caption|media caption|video caption|copyright)\s*[,:]"
+    r"|^\d+ (minutes?|mins?|hours?|hrs?|days?) ago$"
+    r"|^\d{1,2} (jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]* \d{4}$",
+    re.I)
+
+
+def unescape(text: str) -> str:
+    return re.sub(r"\\([\\`*_{}\[\]()#+\-.!>])", r"\1", text)
 
 
 def to_blocks(markdown: str) -> list:
@@ -103,49 +117,54 @@ def to_blocks(markdown: str) -> list:
         line = raw.strip()
         if not line:
             continue
-        image = IMAGE_LINE.match(line)
-        if image:
-            alt, src = image.group(1).strip(), image.group(2)
-            if src.startswith("http") and not JUNK_IMAGE.search(src) and src not in seen:
-                seen.add(src)
-                blocks.append({"img": src, "alt": alt})
-            continue
-        unescape = lambda t: re.sub(r"\\([\\`*_{}\[\]()#+\-.!>])", r"\1", t)  # undo markdown escapes
         heading = HEADING_LINE.match(line)
         if heading:
             if blocks:  # a heading before any text is just the headline again
                 blocks.append({"h": unescape(heading.group(1).strip())})
             continue
-        blocks.append(unescape(line))
+        is_item = bool(LIST_MARKER.match(line))
+        line = LIST_MARKER.sub("", line)
+        # A line that is only images (photo galleries come through as lists).
+        images = IMAGE.findall(line)
+        if images and not IMAGE.sub("", line).strip():
+            for alt, src in images:
+                if src.startswith("http") and not JUNK_IMAGE.search(src) and src not in seen:
+                    seen.add(src)
+                    blocks.append({"img": src, "alt": unescape(alt.strip())})
+            continue
+        line = unescape(IMAGE.sub("", line)).strip()
+        if line and not JUNK_LINE.search(line):
+            blocks.append(f"• {line}" if is_item else line)
     return blocks
 
 
 def article_text(url: str, story_id: str, budget: list) -> list | None:
-    """Readable paragraphs for one article, cached. None if unavailable."""
-    path = CACHE / f"{story_id}.v2.json"
+    """Readable blocks for one article. The raw extracted markdown is cached,
+    so changes to to_blocks() apply without downloading articles again."""
+    path = CACHE / f"{story_id}.v3.json"
     if path.exists():
-        cached = json.loads(path.read_text())
-        return cached.get("paragraphs")
-    if budget[0] <= 0:
-        return None  # try again next run
-    budget[0] -= 1
-    paragraphs = None
-    try:
-        time.sleep(FETCH_DELAY)
-        resp = SESSION.get(url, timeout=25)
-        resp.raise_for_status()
-        text = trafilatura.extract(resp.text, url=url, output_format="markdown",
-                                   include_images=True, include_links=False,
-                                   include_comments=False, include_tables=False,
-                                   favor_precision=True)
-        blocks = to_blocks(text or "")
-        prose = [b for b in blocks if isinstance(b, str)]
-        if len(prose) >= 3 and sum(len(x) for x in prose) >= 400:
-            paragraphs = blocks
-    except Exception:
-        paragraphs = None
-    path.write_text(json.dumps({"paragraphs": paragraphs}))
-    return paragraphs
+        markdown = json.loads(path.read_text()).get("markdown")
+    else:
+        if budget[0] <= 0:
+            return None  # try again next run
+        budget[0] -= 1
+        markdown = None
+        try:
+            time.sleep(FETCH_DELAY)
+            resp = SESSION.get(url, timeout=25)
+            resp.raise_for_status()
+            markdown = trafilatura.extract(resp.text, url=url, output_format="markdown",
+                                           include_images=True, include_links=False,
+                                           include_comments=False, include_tables=False,
+                                           favor_precision=True)
+        except Exception:
+            markdown = None
+        path.write_text(json.dumps({"markdown": markdown}))
+    if not markdown:
+        return None
+    blocks = to_blocks(markdown)
+    prose = [b for b in blocks if isinstance(b, str)]
+    return blocks if len(prose) >= 3 and sum(len(x) for x in prose) >= 400 else None
 
 
 def collect(source: dict, cutoff: datetime, budget: list) -> tuple[list, dict]:
