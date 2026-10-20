@@ -1,4 +1,19 @@
 [
+  { "name": "Spawn Wave", "id": "UCoIXnB865l9Ex9zs4OIXTdQ" },
   { "name": "Skill Up", "id": "UCZ7AeeVbyslLM_8-nVy2B8Q" },
-  { "name": "Spawn Wave", "handle": "@SpawnWave" }
+  { "name": "Digital Foundry", "id": "UC9PBzalIcEQCsiIkq36PyUA" },
+  { "name": "orbalology", "id": "UCUz2ohlrFiEzlrFgx9ZGKiw" },
+  { "name": "Mike's Book Reviews", "id": "UCm_DGonIiSrLBGLz0ProiWA" },
+  { "name": "Shredded Otaku", "id": "UCdz4-IpA6MVK_DMPXG-R2nA" },
+  { "name": "Calvin Dyson", "id": "UC-9lKusIRrNK3KcU-Jvn8yg" },
+  { "name": "Arlo", "id": "UC-9QiiVaViuqMhLp1XEwdxA" },
+  { "name": "TopicArlo", "id": "UCHDRlTIaDXGGYduDDNrBmTw" },
+  { "name": "Jason Schreier", "id": "UCQoOmu6mKZkXTnwZcpD8Ciw" },
+  { "name": "Retro Rebound", "id": "UCZ7H0l_I1gPOGsz0bU_V1MQ" },
+  { "name": "Nintendo Life", "id": "UCl7ZXbZUCWI2Hz--OrO4bsA" },
+  { "name": "speedsultan", "id": "UCyz2HaVvdPAimpCqxSaaYuQ" },
+  { "name": "Comics Are Dope", "id": "UC5YqgY8sBUWIvJFU2Xgn4og" },
+  { "name": "Liam Triforce", "id": "UCWQfbcMGyrPDlIU7wV7aAOQ" },
+  { "name": "MrMattyPlays", "id": "UCmXH6CX_juGwNFTj3PESdoA" },
+  { "name": "MKBHD", "id": "UCBJycsmduvYEL83R_U4JriQ" }
 ]

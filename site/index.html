@@ -91,6 +91,14 @@
   .empty { text-align: center; padding: 56px 16px; color: var(--muted); }
   .empty strong { display: block; color: var(--ink); font-size: 20px; margin-bottom: 6px; }
   .warn { color: var(--accent); font-size: 13px; margin: -8px 0 16px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 16px 0 20px; }
+  .toolbar .tabs { margin: 0; }
+  .channel-filter {
+    margin-left: auto; max-width: 100%; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 14px;
+  }
+  .actions { flex: none; display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .later.on { border-color: var(--ink); background: var(--ink); color: var(--bg); }
 </style>
 </head>
 <body>
@@ -99,23 +107,38 @@
     <h1>Watch List</h1>
     <div class="updated" id="updated"></div>
   </header>
-  <div class="tabs" role="group" aria-label="Filter">
-    <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="count-new"></span></button>
-    <button class="tab" data-view="all" aria-pressed="false">All<span class="count" id="count-all"></span></button>
+  <div class="toolbar">
+    <div class="tabs" role="group" aria-label="View">
+      <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="count-new"></span></button>
+      <button class="tab" data-view="later" aria-pressed="false">Later<span class="count" id="count-later"></span></button>
+      <button class="tab" data-view="all" aria-pressed="false">All<span class="count" id="count-all"></span></button>
+    </div>
+    <select class="channel-filter" id="channel" aria-label="Filter by channel"></select>
   </div>
   <div class="warn" id="warn" hidden></div>
   <main class="list" id="list"></main>
 </div>
 
 <script>
-  const STORAGE_KEY = "watched-v1";
-  let watched = new Set();
-  try { watched = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")); } catch (e) {}
+  // Everything here is stored on this device only.
+  const KEYS = { watched: "watched-v1", later: "later-v1", channel: "channel-v1" };
+  const load = (key, fallback) => {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
+  };
+  const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} };
+
+  let watched = new Set(load(KEYS.watched, []));
+  // Saved videos keep their full details so they survive after
+  // dropping out of the feed. Oldest-saved first, like a queue.
+  let later = load(KEYS.later, []);
+  let channel = load(KEYS.channel, "");
   let view = "new";
   let videos = [];
 
-  function save() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...watched])); } catch (e) {}
+  const isLater = id => later.some(v => v.id === id);
+  function saveState() {
+    store(KEYS.watched, [...watched]);
+    store(KEYS.later, later);
   }
 
   function ago(iso) {
@@ -134,8 +157,16 @@
     return node;
   }
 
+  // Which videos belong in each tab, before the channel filter.
+  function inView(name) {
+    if (name === "new") return videos.filter(v => !watched.has(v.id) && !isLater(v.id));
+    if (name === "later") return later;
+    return videos;
+  }
+  const byChannel = list => channel ? list.filter(v => v.channel === channel) : list;
+  const belongs = v => inView(view).some(x => x.id === v.id) && (!channel || v.channel === channel);
+
   function card(v) {
-    const isWatched = watched.has(v.id);
     const player = el("div", { className: "player" });
     const playBtn = el("button", { ariaLabel: `Play ${v.title}` }, [
       el("img", { src: v.thumbnail, alt: "", loading: "lazy" }),
@@ -153,44 +184,76 @@
     });
     player.append(playBtn);
 
-    const tick = el("button", { className: "tick", textContent: isWatched ? "Watched ✓" : "Mark watched" });
-    const node = el("article", { className: "card" + (isWatched ? " watched" : "") }, [
+    const laterBtn = el("button", { className: "tick later" });
+    const tick = el("button", { className: "tick" });
+    const node = el("article", { className: "card" }, [
       player,
       el("div", { className: "meta" }, [
         el("div", { className: "text" }, [
           el("p", { className: "title", textContent: v.title }),
           el("div", { className: "sub", textContent: `${v.channel} · ${ago(v.published)}` }),
         ]),
-        tick,
+        el("div", { className: "actions" }, [laterBtn, tick]),
       ]),
     ]);
-    tick.addEventListener("click", () => {
-      watched.has(v.id) ? watched.delete(v.id) : watched.add(v.id);
-      save();
-      if (view === "new" && watched.has(v.id)) render();
-      else {
-        node.classList.toggle("watched", watched.has(v.id));
-        tick.textContent = watched.has(v.id) ? "Watched ✓" : "Mark watched";
-        counts();
-      }
+
+    function paint() {
+      const w = watched.has(v.id), l = isLater(v.id);
+      node.classList.toggle("watched", w);
+      tick.textContent = w ? "Watched ✓" : "Mark watched";
+      laterBtn.classList.toggle("on", l);
+      laterBtn.textContent = l ? "Saved ✓" : "Watch later";
+    }
+    function afterChange() {
+      saveState();
+      if (belongs(v)) { paint(); counts(); } else render();
+    }
+
+    laterBtn.addEventListener("click", () => {
+      if (isLater(v.id)) later = later.filter(x => x.id !== v.id);
+      else { later.push(v); watched.delete(v.id); }
+      afterChange();
     });
+    tick.addEventListener("click", () => {
+      if (watched.has(v.id)) watched.delete(v.id);
+      else { watched.add(v.id); later = later.filter(x => x.id !== v.id); }
+      afterChange();
+    });
+    paint();
     return node;
   }
 
   function counts() {
-    const unwatched = videos.filter(v => !watched.has(v.id)).length;
-    document.getElementById("count-new").textContent = unwatched;
-    document.getElementById("count-all").textContent = videos.length;
+    for (const name of ["new", "later", "all"]) {
+      document.getElementById(`count-${name}`).textContent = byChannel(inView(name)).length;
+    }
+  }
+
+  function buildChannelMenu() {
+    const select = document.getElementById("channel");
+    const names = [...new Set([...videos, ...later].map(v => v.channel))]
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    if (channel && !names.includes(channel)) channel = "";
+    select.replaceChildren(
+      el("option", { value: "", textContent: "All channels" }),
+      ...names.map(n => el("option", { value: n, textContent: n })),
+    );
+    select.value = channel;
   }
 
   function render() {
     const list = document.getElementById("list");
-    const shown = view === "new" ? videos.filter(v => !watched.has(v.id)) : videos;
+    const shown = byChannel(inView(view));
     counts();
     if (!shown.length) {
+      const msgs = {
+        new: ["All caught up.", "That's everything. Go do something else."],
+        later: ["Nothing saved.", "Tap “Watch later” on a video to keep it here."],
+        all: ["Nothing here yet.", "Check back after the next update."],
+      };
+      const [title, text] = msgs[view];
       list.replaceChildren(el("div", { className: "empty" }, [
-        el("strong", { textContent: view === "new" ? "All caught up." : "Nothing here yet." }),
-        document.createTextNode(view === "new" ? "That's everything. Go do something else." : "Check back after the next update."),
+        el("strong", { textContent: title }), document.createTextNode(text),
       ]));
       return;
     }
@@ -202,6 +265,11 @@
     document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
     render();
   }));
+  document.getElementById("channel").addEventListener("change", e => {
+    channel = e.target.value;
+    store(KEYS.channel, channel);
+    render();
+  });
 
   fetch("videos.json", { cache: "no-store" })
     .then(r => r.json())
@@ -213,10 +281,11 @@
         warn.textContent = `Couldn't refresh: ${data.errors.join(", ")}`;
         warn.hidden = false;
       }
-      // Forget watched ticks for videos that have aged off the list.
-      const ids = new Set(videos.map(v => v.id));
+      // Forget watched ticks for videos no longer in the feed or saved list.
+      const ids = new Set([...videos, ...later].map(v => v.id));
       watched = new Set([...watched].filter(id => ids.has(id)));
-      save();
+      saveState();
+      buildChannelMenu();
       render();
     })
     .catch(() => {
