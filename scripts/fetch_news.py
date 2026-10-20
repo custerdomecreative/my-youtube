@@ -90,9 +90,39 @@ def image_for(entry) -> str:
     return match.group(1) if match else ""
 
 
+IMAGE_LINE = re.compile(r"^!\[(.*?)\]\((\S+?)\)\s*$")
+HEADING_LINE = re.compile(r"^#{1,6}\s+(.*)$")
+JUNK_IMAGE = re.compile(r"placeholder|pixel|spacer|1x1|logo|icon|\.svg|\.gif|^data:", re.I)
+
+
+def to_blocks(markdown: str) -> list:
+    """Article markdown -> list of blocks: a string is a paragraph,
+    {"img": url, "alt": text} an image, {"h": text} a subheading."""
+    blocks, seen = [], set()
+    for raw in markdown.split("\n"):
+        line = raw.strip()
+        if not line:
+            continue
+        image = IMAGE_LINE.match(line)
+        if image:
+            alt, src = image.group(1).strip(), image.group(2)
+            if src.startswith("http") and not JUNK_IMAGE.search(src) and src not in seen:
+                seen.add(src)
+                blocks.append({"img": src, "alt": alt})
+            continue
+        unescape = lambda t: re.sub(r"\\([\\`*_{}\[\]()#+\-.!>])", r"\1", t)  # undo markdown escapes
+        heading = HEADING_LINE.match(line)
+        if heading:
+            if blocks:  # a heading before any text is just the headline again
+                blocks.append({"h": unescape(heading.group(1).strip())})
+            continue
+        blocks.append(unescape(line))
+    return blocks
+
+
 def article_text(url: str, story_id: str, budget: list) -> list | None:
     """Readable paragraphs for one article, cached. None if unavailable."""
-    path = CACHE / f"{story_id}.json"
+    path = CACHE / f"{story_id}.v2.json"
     if path.exists():
         cached = json.loads(path.read_text())
         return cached.get("paragraphs")
@@ -104,12 +134,14 @@ def article_text(url: str, story_id: str, budget: list) -> list | None:
         time.sleep(FETCH_DELAY)
         resp = SESSION.get(url, timeout=25)
         resp.raise_for_status()
-        text = trafilatura.extract(resp.text, url=url, output_format="txt",
+        text = trafilatura.extract(resp.text, url=url, output_format="markdown",
+                                   include_images=True, include_links=False,
                                    include_comments=False, include_tables=False,
                                    favor_precision=True)
-        lines = [line.strip() for line in (text or "").split("\n") if line.strip()]
-        if len(lines) >= 3 and sum(len(x) for x in lines) >= 400:
-            paragraphs = lines
+        blocks = to_blocks(text or "")
+        prose = [b for b in blocks if isinstance(b, str)]
+        if len(prose) >= 3 and sum(len(x) for x in prose) >= 400:
+            paragraphs = blocks
     except Exception:
         paragraphs = None
     path.write_text(json.dumps({"paragraphs": paragraphs}))
@@ -194,7 +226,7 @@ def main() -> int:
     # Drop cached articles that have aged out.
     keep = {s["id"] for s in stories}
     for path in CACHE.glob("*.json"):
-        if path.stem not in keep and path.stat().st_mtime < time.time() - 4 * 86400:
+        if path.name.split(".")[0] not in keep and path.stat().st_mtime < time.time() - 4 * 86400:
             path.unlink()
     return 1 if statuses and all(s["error"] for s in statuses) else 0
 

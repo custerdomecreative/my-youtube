@@ -30,6 +30,10 @@
     font-size: 17px; line-height: 1.6;
   }
   .reader p { margin: 0 0 1em; }
+  .reader figure { margin: 0 0 1em; }
+  .reader img { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--line); }
+  .reader figcaption { color: var(--muted); font-size: 13px; line-height: 1.4; margin-top: 6px; }
+  .reader h3 { font-size: 18px; line-height: 1.3; margin: 1.4em 0 0.5em; }
   .reader .done { margin-top: 4px; }
   .unlock { max-width: 360px; margin: 48px auto; text-align: center; }
   .unlock p { color: var(--muted); }
@@ -165,6 +169,29 @@
   const bySource = list => source ? list.filter(s => s.source === source) : list;
   const belongs = s => inView(view).some(x => x.id === s.id) && (!source || s.source === source);
 
+  // Article text: strings are paragraphs, {img, alt} images, {h} subheadings.
+  function figure(src, alt) {
+    const img = el("img", { src, alt: alt || "", loading: "lazy" });
+    const fig = el("figure", {}, [img]);
+    if (alt) fig.append(el("figcaption", { textContent: alt }));
+    img.addEventListener("error", () => fig.remove());
+    return fig;
+  }
+  function readerBlocks(s) {
+    const blocks = s.text.map(b => {
+      if (typeof b === "string") return el("p", { textContent: b });
+      if (b.img) return figure(b.img, b.alt);
+      if (b.h) return el("h3", { textContent: b.h });
+      return document.createTextNode("");
+    });
+    // No photos in the article text: lead with the story's own picture.
+    // BBC feed thumbnails are small, so ask for a larger size of the same image.
+    if (!s.text.some(b => b && b.img) && s.image) {
+      blocks.unshift(figure(s.image.replace(/(ichef\.bbci\.co\.uk\/[^/]+\/[^/]+\/)240\//, "$1976/"), ""));
+    }
+    return blocks;
+  }
+
   function card(s) {
     const readBtn = s.text
       ? el("button", { className: "tick", textContent: "Read" })
@@ -192,7 +219,7 @@
       if (reader) { reader.remove(); reader = null; readBtn.textContent = "Read"; return; }
       const finish = el("button", { className: "tick done", textContent: "Done — mark as read" });
       finish.addEventListener("click", () => { markRead(true); });
-      reader = el("div", { className: "reader" }, [...s.text.map(t => el("p", { textContent: t })), finish]);
+      reader = el("div", { className: "reader" }, [...readerBlocks(s), finish]);
       node.append(reader);
       readBtn.textContent = "Close";
     });
