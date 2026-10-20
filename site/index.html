@@ -81,9 +81,7 @@
   .meta { padding: 12px 14px 14px; display: flex; gap: 12px; align-items: flex-start; }
   .text { flex: 1; min-width: 0; }
   .title { font-weight: 600; margin: 0 0 4px; font-size: 16px; }
-  .sub { color: var(--muted); font-size: 13px; }
-  .applink { color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
-  .tick {
+  .sub { color: var(--muted); font-size: 13px; }  .tick {
     flex: none; border: 1px solid var(--line); background: transparent; color: var(--ink);
     border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
   }
@@ -161,11 +159,7 @@
       el("div", { className: "meta" }, [
         el("div", { className: "text" }, [
           el("p", { className: "title", textContent: v.title }),
-          el("div", { className: "sub" }, [
-            document.createTextNode(`${v.channel} · ${ago(v.published)} · `),
-            el("a", { className: "applink", href: `https://www.youtube.com/watch?v=${v.id}`,
-                      textContent: "Open in YouTube", target: "_blank", rel: "noopener" }),
-          ]),
+          el("div", { className: "sub", textContent: `${v.channel} · ${ago(v.published)}` }),
         ]),
         tick,
       ]),
