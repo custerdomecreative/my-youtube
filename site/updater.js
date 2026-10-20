@@ -76,9 +76,14 @@
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref: "main" }),
       });
     } catch (e) { paint("Couldn't reach GitHub"); setTimeout(() => paint(), 8000); return; }
-    if (res.status === 401 || res.status === 403 || res.status === 404) {
+    if (res.status === 401) {
+      // Only forget a token GitHub says is invalid or expired.
       set(KEYS.token, null);
-      alert("GitHub didn't accept that token. Check it has \"Actions: Read and write\" on this repository, then try again.");
+      alert("GitHub says that token is invalid or expired. Tap Update now again to enter a new one.");
+      return paint();
+    }
+    if (res.status === 403 || res.status === 404) {
+      alert("GitHub accepted the token but it can't run the update. Check it has access to my-youtube with \"Actions: Read and write\".");
       return paint();
     }
     if (!res.ok) { paint("Update failed — try later"); setTimeout(() => paint(), 8000); return; }

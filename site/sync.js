@@ -106,13 +106,28 @@
     const box = document.querySelector(".update-box");
     if (!box) return;
     let node = box.querySelector(".sync-status");
-    if (!node) { node = document.createElement("div"); node.className = "sync-status"; box.append(node); }
+    if (!node) {
+      node = document.createElement("button"); node.className = "sync-status"; box.append(node);
+      node.addEventListener("click", askForToken);
+    }
     node.textContent = text; node.title = title;
+  }
+
+  // Tapping "Sync off" / "Sync needs setup" lets you paste (or replace) the token.
+  function askForToken() {
+    if (!/off|setup/i.test(status)) return;
+    const value = prompt(
+      "Paste your GitHub token for this device. It's stored on this device only.\n\n" +
+      "It needs access to my-youtube (Actions: Read and write) and my-youtube-state (Contents: Read and write).",
+      token() || "");
+    if (value === null) return;
+    try { value.trim() ? rawSet.call(localStorage, TOKEN_KEY, value.trim()) : localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    sync();
   }
 
   let busy = false, again = false, pendingReload = false;
   async function sync(attempt = 0) {
-    if (!token()) return show("Sync off", "Enter your GitHub token (via Update now) to sync between devices.");
+    if (!token()) return show("Sync off — tap to set up", "Tap to enter your GitHub token and sync between devices.");
     if (busy) { again = true; return; }
     busy = true;
     try {
@@ -142,7 +157,7 @@
       show("Synced ✓");
       if (changed) reloadWhenIdle();
     } catch (e) {
-      if (e.message === "setup") show("Sync needs setup", `The token needs "Contents: Read and write" access to ${STATE_REPO}.`);
+      if (e.message === "setup") show("Sync needs setup — tap", `The token needs "Contents: Read and write" access to ${STATE_REPO}. Tap to replace it.`);
       else show("Sync failed — will retry");
     } finally {
       busy = false;
