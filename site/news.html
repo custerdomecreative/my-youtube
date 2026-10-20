@@ -14,6 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
 <link rel="stylesheet" href="style.css">
+<script src="sync.js"></script>
 <style>
   .story { padding: 14px; }
   .story-top { display: flex; gap: 12px; align-items: flex-start; }
@@ -312,9 +313,8 @@
   function start(data) {
     stories = data.stories || [];
     $("updated").textContent = data.updated ? `Updated ${ago(data.updated)}` : "";
-    const ids = new Set([...stories, ...later].map(s => s.id));
-    read = new Set([...read].filter(id => ids.has(id)));
-    saveState();
+    // Read ticks are synced between devices, so keep them (capped) rather than pruning.
+    if (read.size > 5000) { read = new Set([...read].slice(-5000)); saveState(); }
     $("unlock").hidden = true;
     $("app").hidden = false;
     buildSourceMenu();

@@ -40,3 +40,11 @@ Each page has an "Update now" button that runs the update workflow on demand
 fine-grained token with access to this repository only and the permission
 "Actions: Read and write". The token is pasted in once per device and kept in
 that browser's storage; it is never committed or published.
+
+## Sync between devices
+
+`site/sync.js` keeps watched/read ticks and the Later lists in step across
+devices by storing them in `state.json` in the private repository
+`custerdomecreative/my-youtube-state`. Each change is timestamped and the most
+recent change to each item wins. It uses the same device-only token as the
+Update button, which also needs "Contents: Read and write" on that repository.

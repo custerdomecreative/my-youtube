@@ -130,3 +130,4 @@ body.no-scroll { overflow: hidden; }
 /* "YT Music" link: only on touch devices, where background play matters */
 .music-link { text-decoration: none; text-align: center; }
 @media (hover: hover) and (pointer: fine) { .music-link { display: none; } }
+.sync-status { color: var(--muted); font-size: 11px; }
