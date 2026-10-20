@@ -78,11 +78,16 @@
     border-left: 20px solid #fff; border-top: 12px solid transparent; border-bottom: 12px solid transparent;
   }
   .player iframe { width: 100%; height: 100%; border: 0; display: block; }
-  /* Invisible strip over the embedded player's title bar, so tapping the
-     title or channel icon doesn't open YouTube. Controls stay usable. */
-  .player .shield { position: absolute; top: 0; left: 0; right: 0; height: min(64px, 24%); z-index: 2; }
+  /* Shields: invisible boxes over the parts of YouTube's player that link
+     out to YouTube. Sizes measured from the 2026 embed layout. */
+  .player .shield { position: absolute; z-index: 2; }
+  /* Top bar: channel icon + title on the left. The right ~170px holds
+     volume, captions and settings, which stay usable. */
+  .player .shield-title { top: 0; left: 0; right: 172px; height: 64px; }
+  /* Bottom-right: the "YouTube" pill. Stops below the progress bar. */
+  .player .shield-logo { right: 0; bottom: 0; width: 178px; height: 64px; }
   .player .fs {
-    position: absolute; top: 8px; right: 8px; z-index: 3; width: 38px; height: 38px;
+    position: absolute; top: 12px; right: 180px; z-index: 3; width: 38px; height: 38px;
     border: 0; border-radius: 10px; background: rgba(0, 0, 0, 0.6); color: #fff;
     font-size: 20px; line-height: 1; cursor: pointer; display: grid; place-items: center;
   }
@@ -92,15 +97,14 @@
     position: fixed; inset: 0; z-index: 1000; border-radius: 0;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  .player:fullscreen .shield, .player.pseudo-fs .shield { height: 80px; }
-  /* Bottom-right shield over the YouTube logo. With fs=0 the logo is the
-     last button on the right, so this stays clear of settings and captions. */
-  .player .shield-logo { top: auto; left: auto; bottom: 0; right: 0; width: 76px; height: 40px; }
-  .player:fullscreen .shield-logo, .player.pseudo-fs .shield-logo { width: 100px; height: 50px; top: auto; }
-  .player.pseudo-fs .shield-logo { bottom: env(safe-area-inset-bottom); right: env(safe-area-inset-right); }
+  /* YouTube enlarges its controls in true fullscreen. */
+  .player:fullscreen .shield-title { right: 250px; height: 92px; }
+  .player:fullscreen .shield-logo { width: 260px; height: 92px; }
+  .player:fullscreen .fs { top: 22px; right: 262px; }
+  .player.pseudo-fs .shield-title, .player.pseudo-fs .fs { margin-top: env(safe-area-inset-top); }
+  .player.pseudo-fs .shield-logo { margin-bottom: env(safe-area-inset-bottom); margin-right: env(safe-area-inset-right); }
   /* Add ?debug to the page address to see where the shields sit. */
   body.debug .shield { background: rgba(255, 0, 0, 0.35); }
-  .player.pseudo-fs .shield { top: env(safe-area-inset-top); }
   body.no-scroll { overflow: hidden; }
   .meta { padding: 12px 14px 14px; display: flex; gap: 12px; align-items: flex-start; }
   .text { flex: 1; min-width: 0; }
@@ -240,7 +244,7 @@
       player.replaceChildren(el("iframe", {
         src, title: v.title,
         allow: "autoplay; encrypted-media; picture-in-picture",
-      }), el("div", { className: "shield", ariaHidden: "true" }),
+      }), el("div", { className: "shield shield-title", ariaHidden: "true" }),
         el("div", { className: "shield shield-logo", ariaHidden: "true" }), fsBtn);
     });
     player.append(playBtn);
