@@ -120,3 +120,10 @@ body.no-scroll { overflow: hidden; }
 /* "Mark all" row above the list */
 .bulk { display: flex; justify-content: flex-end; margin: -6px 0 14px; }
 .bulk[hidden] { display: none; }
+/* Update-now button under the "Updated …" time */
+.update-box { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.update-btn {
+  border: 1px solid var(--line); background: transparent; color: var(--ink);
+  border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.update-btn:disabled { color: var(--muted); cursor: default; }

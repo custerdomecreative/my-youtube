@@ -32,3 +32,11 @@ article text readable on the page where the site allows it (not NYT).
 - `site/status.json` (unencrypted) lists per-source counts and errors only.
 - To add or remove a source, edit `feeds.json`. Set `"fulltext": false` for
   paywalled sites.
+
+## Update now button
+
+Each page has an "Update now" button that runs the update workflow on demand
+(1-hour cooldown per device, set in `site/updater.js`). It needs a GitHub
+fine-grained token with access to this repository only and the permission
+"Actions: Read and write". The token is pasted in once per device and kept in
+that browser's storage; it is never committed or published.
