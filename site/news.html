@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>News</title>
+<meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Watch List">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="style.css">
+<style>
+  .story { padding: 14px; }
+  .story-top { display: flex; gap: 12px; align-items: flex-start; }
+  .story-top .text { flex: 1; min-width: 0; }
+  .story .title { font-size: 17px; line-height: 1.3; margin: 4px 0 6px; }
+  .story .summary { color: var(--muted); font-size: 14px; margin: 0; }
+  .thumb { flex: none; width: 92px; height: 92px; border-radius: 10px; object-fit: cover; background: var(--line); }
+  .story-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .story-actions a.tick { text-decoration: none; display: inline-block; }
+  .card.watched .summary { color: var(--done); }
+  .card.watched .thumb { filter: grayscale(1) opacity(0.6); }
+  .reader {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line);
+    font-size: 17px; line-height: 1.6;
+  }
+  .reader p { margin: 0 0 1em; }
+  .reader .done { margin-top: 4px; }
+  .unlock { max-width: 360px; margin: 48px auto; text-align: center; }
+  .unlock p { color: var(--muted); }
+  .unlock form { display: flex; gap: 8px; margin-top: 16px; }
+  .unlock input {
+    flex: 1; min-width: 0; font: inherit; padding: 10px 14px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  .unlock button {
+    font: inherit; padding: 10px 18px; border-radius: 999px; border: 0;
+    background: var(--ink); color: var(--bg); cursor: pointer;
+  }
+  .unlock .error { color: var(--accent); min-height: 1.4em; margin-top: 10px; font-size: 14px; }
+  .lock { display: block; margin: 28px auto 0; background: none; border: 0; color: var(--muted); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="switch" aria-label="Sections"><a href="./">Videos</a><a href="news.html" aria-current="page">News</a></nav>
+  <header>
+    <h1>News</h1>
+    <div class="updated" id="updated"></div>
+  </header>
+
+  <section class="unlock" id="unlock" hidden>
+    <p id="unlock-msg">Enter your news password. You'll only need to do this once on each device.</p>
+    <form id="unlock-form">
+      <input type="password" id="password" autocomplete="current-password" placeholder="Password" aria-label="Password">
+      <button type="submit">Unlock</button>
+    </form>
+    <div class="error" id="unlock-error"></div>
+  </section>
+
+  <div id="app" hidden>
+    <div class="toolbar">
+      <div class="tabs" role="group" aria-label="View">
+        <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="count-new"></span></button>
+        <button class="tab" data-view="later" aria-pressed="false">Later<span class="count" id="count-later"></span></button>
+        <button class="tab" data-view="all" aria-pressed="false">All<span class="count" id="count-all"></span></button>
+      </div>
+      <select class="channel-filter" id="source" aria-label="Filter by source"></select>
+    </div>
+    <div class="warn" id="warn" hidden></div>
+    <main class="list" id="list"></main>
+    <button class="lock" id="lock">Lock this device</button>
+  </div>
+</div>
+
+<script>
+  // Everything here is stored on this device only.
+  const KEYS = { key: "news-key-v1", read: "news-read-v1", later: "news-later-v1", source: "news-source-v1" };
+  const load = (k, fallback) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } };
+  const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const toB64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+
+  let read = new Set(load(KEYS.read, []));
+  let later = load(KEYS.later, []);   // full stories, oldest-saved first
+  let source = load(KEYS.source, "");
+  let view = "new";
+  let stories = [];
+  let encrypted = null;
+
+  const $ = id => document.getElementById(id);
+  function el(tag, props = {}, children = []) {
+    const node = Object.assign(document.createElement(tag), props);
+    node.append(...children);
+    return node;
+  }
+  function ago(iso) {
+    if (!iso) return "";
+    const mins = Math.round((Date.now() - new Date(iso)) / 60000);
+    if (mins < 60) return `${Math.max(mins, 1)} min ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
+    const days = Math.round(hrs / 24);
+    return `${days} day${days === 1 ? "" : "s"} ago`;
+  }
+
+  // --- Decryption (AES-GCM, key from the password via PBKDF2) ---
+  async function keyFromPassword(password) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: b64(encrypted.salt), iterations: encrypted.iterations, hash: "SHA-256" },
+      base, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
+  }
+  async function decrypt(key) {
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(encrypted.iv) }, key, b64(encrypted.data));
+    return JSON.parse(new TextDecoder().decode(plain));
+  }
+  async function savedKey() {
+    const raw = load(KEYS.key, null);
+    if (!raw) return null;
+    try { return await crypto.subtle.importKey("raw", b64(raw), { name: "AES-GCM" }, true, ["decrypt"]); }
+    catch (e) { return null; }
+  }
+
+  function showUnlock(message, error = "") {
+    $("app").hidden = true;
+    $("unlock").hidden = false;
+    if (message) $("unlock-msg").textContent = message;
+    $("unlock-error").textContent = error;
+  }
+
+  $("unlock-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const pw = $("password").value;
+    if (!pw || !encrypted) return;
+    $("unlock-error").textContent = "Unlocking…";
+    try {
+      const key = await keyFromPassword(pw);
+      const data = await decrypt(key);
+      store(KEYS.key, toB64(await crypto.subtle.exportKey("raw", key)));
+      $("password").value = "";
+      start(data);
+    } catch (err) {
+      $("unlock-error").textContent = "That password didn't work.";
+    }
+  });
+  $("lock").addEventListener("click", () => {
+    try { localStorage.removeItem(KEYS.key); } catch (e) {}
+    location.reload();
+  });
+
+  // --- The list ---
+  const isLater = id => later.some(s => s.id === id);
+  function saveState() { store(KEYS.read, [...read]); store(KEYS.later, later); }
+  function inView(name) {
+    if (name === "new") return stories.filter(s => !read.has(s.id) && !isLater(s.id));
+    if (name === "later") return later;
+    return stories;
+  }
+  const bySource = list => source ? list.filter(s => s.source === source) : list;
+  const belongs = s => inView(view).some(x => x.id === s.id) && (!source || s.source === source);
+
+  function card(s) {
+    const readBtn = s.text
+      ? el("button", { className: "tick", textContent: "Read" })
+      : el("a", { className: "tick", textContent: `Read on ${s.source} ↗`, href: s.link, target: "_blank", rel: "noopener" });
+    const laterBtn = el("button", { className: "tick later" });
+    const doneBtn = el("button", { className: "tick" });
+    const top = el("div", { className: "story-top" }, [
+      el("div", { className: "text" }, [
+        el("div", { className: "sub", textContent: `${s.source} · ${ago(s.published)}` }),
+        el("p", { className: "title", textContent: s.title }),
+        el("p", { className: "summary", textContent: s.summary }),
+      ]),
+    ]);
+    if (s.image) {
+      const img = el("img", { className: "thumb", src: s.image, alt: "", loading: "lazy" });
+      img.addEventListener("error", () => img.remove());
+      top.append(img);
+    }
+    const node = el("article", { className: "card story" }, [
+      top, el("div", { className: "story-actions" }, [readBtn, laterBtn, doneBtn]),
+    ]);
+
+    let reader = null;
+    if (s.text) readBtn.addEventListener("click", () => {
+      if (reader) { reader.remove(); reader = null; readBtn.textContent = "Read"; return; }
+      const finish = el("button", { className: "tick done", textContent: "Done — mark as read" });
+      finish.addEventListener("click", () => { markRead(true); });
+      reader = el("div", { className: "reader" }, [...s.text.map(t => el("p", { textContent: t })), finish]);
+      node.append(reader);
+      readBtn.textContent = "Close";
+    });
+
+    function paint() {
+      const r = read.has(s.id), l = isLater(s.id);
+      node.classList.toggle("watched", r);
+      doneBtn.textContent = r ? "Read ✓" : "Mark read";
+      laterBtn.classList.toggle("on", l);
+      laterBtn.textContent = l ? "Saved ✓" : "Read later";
+    }
+    function afterChange() {
+      saveState();
+      if (belongs(s)) { paint(); counts(); } else render();
+    }
+    function markRead(value) {
+      if (value) { read.add(s.id); later = later.filter(x => x.id !== s.id); } else read.delete(s.id);
+      afterChange();
+    }
+    laterBtn.addEventListener("click", () => {
+      if (isLater(s.id)) later = later.filter(x => x.id !== s.id);
+      else { later.push(s); read.delete(s.id); }
+      afterChange();
+    });
+    doneBtn.addEventListener("click", () => markRead(!read.has(s.id)));
+    paint();
+    return node;
+  }
+
+  function counts() {
+    for (const name of ["new", "later", "all"]) $(`count-${name}`).textContent = bySource(inView(name)).length;
+  }
+  function buildSourceMenu() {
+    const names = [...new Set([...stories, ...later].map(s => s.source))].sort();
+    if (source && !names.includes(source)) source = "";
+    $("source").replaceChildren(el("option", { value: "", textContent: "All sources" }),
+      ...names.map(n => el("option", { value: n, textContent: n })));
+    $("source").value = source;
+  }
+  function render() {
+    const shown = bySource(inView(view));
+    counts();
+    if (!shown.length) {
+      const msgs = {
+        new: ["All caught up.", "That's the news for now. Go do something else."],
+        later: ["Nothing saved.", "Tap “Read later” on a story to keep it here."],
+        all: ["Nothing here yet.", "Check back after the next update."],
+      };
+      const [title, text] = msgs[view];
+      $("list").replaceChildren(el("div", { className: "empty" }, [el("strong", { textContent: title }), document.createTextNode(text)]));
+      return;
+    }
+    $("list").replaceChildren(...shown.map(card));
+  }
+  document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
+    view = btn.dataset.view;
+    document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+    render();
+  }));
+  $("source").addEventListener("change", e => { source = e.target.value; store(KEYS.source, source); render(); });
+
+  function start(data) {
+    stories = data.stories || [];
+    $("updated").textContent = data.updated ? `Updated ${ago(data.updated)}` : "";
+    const ids = new Set([...stories, ...later].map(s => s.id));
+    read = new Set([...read].filter(id => ids.has(id)));
+    saveState();
+    $("unlock").hidden = true;
+    $("app").hidden = false;
+    buildSourceMenu();
+    render();
+  }
+
+  (async () => {
+    try {
+      const status = await fetch("status.json", { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      if (status && status.configured === false) {
+        showUnlock("News isn't set up yet: the NEWS_PASSWORD secret hasn't been added to the repository.");
+        $("unlock-form").hidden = true;
+        return;
+      }
+      const failed = (status?.sources || []).filter(s => s.error).map(s => s.name);
+      if (failed.length) { $("warn").textContent = `Couldn't refresh: ${failed.join(", ")}`; $("warn").hidden = false; }
+      encrypted = await fetch("news.enc.json", { cache: "no-store" }).then(r => r.json());
+      const key = await savedKey();
+      if (key) {
+        try { return start(await decrypt(key)); } catch (e) { /* password changed */ }
+      }
+      showUnlock();
+    } catch (e) {
+      showUnlock("Couldn't load the news. Try again in a bit.");
+      $("unlock-form").hidden = true;
+    }
+  })();
+</script>
+</body>
+</html>

@@ -1,2 +1,5 @@
 site/videos.json
+site/news.enc.json
+site/status.json
+.cache/
 __pycache__/

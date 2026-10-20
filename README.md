@@ -20,3 +20,15 @@ The page rebuilds automatically after the commit.
 ## Refresh now
 
 Actions tab → "Update watch list" → "Run workflow".
+
+## News page
+
+`news.html` shows recent stories from the feeds in `feeds.json`, with the
+article text readable on the page where the site allows it (not NYT).
+
+- The story data is encrypted with the `NEWS_PASSWORD` repository secret
+  before publishing, so the public page is unreadable without it. Each device
+  asks for the password once.
+- `site/status.json` (unencrypted) lists per-source counts and errors only.
+- To add or remove a source, edit `feeds.json`. Set `"fulltext": false` for
+  paywalled sites.

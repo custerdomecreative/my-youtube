@@ -28,6 +28,20 @@ jobs:
           python-version: "3.12"
       - name: Fetch latest videos
         run: python scripts/fetch_feeds.py
+      - name: Restore cached article text
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: articles-${{ github.run_id }}
+          restore-keys: articles-
+      - name: Fetch news
+        # A news failure shouldn't stop the video page updating.
+        continue-on-error: true
+        env:
+          NEWS_PASSWORD: ${{ secrets.NEWS_PASSWORD }}
+        run: |
+          pip install --quiet feedparser trafilatura cryptography requests
+          python scripts/fetch_news.py
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
