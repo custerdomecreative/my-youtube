@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Watch List</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Watch List">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --surface: #fffdf8;
+    --ink: #1d1b16;
+    --muted: #6d685c;
+    --line: #e2ddd1;
+    --accent: #c4502b;
+    --accent-ink: #ffffff;
+    --done: #8a857a;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16150f;
+      --surface: #201e17;
+      --ink: #eeeadf;
+      --muted: #9d978a;
+      --line: #322f26;
+      --accent: #e0714b;
+      --accent-ink: #16150f;
+      --done: #6f6a5f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: calc(env(safe-area-inset-top) + 20px) 16px calc(env(safe-area-inset-bottom) + 40px);
+  }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0; }
+  .updated { color: var(--muted); font-size: 13px; text-align: right; }
+  .tabs { display: flex; gap: 8px; margin: 16px 0 20px; }
+  .tab {
+    border: 1px solid var(--line); background: transparent; color: var(--ink);
+    border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 14px; cursor: pointer;
+  }
+  .tab[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .count { opacity: 0.7; margin-left: 4px; }
+  .list { display: grid; gap: 18px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; overflow: hidden;
+  }
+  .player { position: relative; aspect-ratio: 16 / 9; background: #000; }
+  .player button {
+    all: unset; cursor: pointer; display: block; width: 100%; height: 100%; position: relative;
+  }
+  .player img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .player .play {
+    position: absolute; inset: 0; margin: auto; width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6); display: grid; place-items: center;
+  }
+  .player .play::after {
+    content: ""; margin-left: 5px;
+    border-left: 20px solid #fff; border-top: 12px solid transparent; border-bottom: 12px solid transparent;
+  }
+  .player iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .meta { padding: 12px 14px 14px; display: flex; gap: 12px; align-items: flex-start; }
+  .text { flex: 1; min-width: 0; }
+  .title { font-weight: 600; margin: 0 0 4px; font-size: 16px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .tick {
+    flex: none; border: 1px solid var(--line); background: transparent; color: var(--ink);
+    border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
+  }
+  .card.watched .tick { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .card.watched .title, .card.watched .sub { color: var(--done); }
+  .card.watched img { filter: grayscale(1) opacity(0.6); }
+  .empty { text-align: center; padding: 56px 16px; color: var(--muted); }
+  .empty strong { display: block; color: var(--ink); font-size: 20px; margin-bottom: 6px; }
+  .warn { color: var(--accent); font-size: 13px; margin: -8px 0 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Watch List</h1>
+    <div class="updated" id="updated"></div>
+  </header>
+  <div class="tabs" role="group" aria-label="Filter">
+    <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="count-new"></span></button>
+    <button class="tab" data-view="all" aria-pressed="false">All<span class="count" id="count-all"></span></button>
+  </div>
+  <div class="warn" id="warn" hidden></div>
+  <main class="list" id="list"></main>
+</div>
+
+<script>
+  const STORAGE_KEY = "watched-v1";
+  let watched = new Set();
+  try { watched = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")); } catch (e) {}
+  let view = "new";
+  let videos = [];
+
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...watched])); } catch (e) {}
+  }
+
+  function ago(iso) {
+    if (!iso) return "";
+    const mins = Math.round((Date.now() - new Date(iso)) / 60000);
+    if (mins < 60) return `${Math.max(mins, 1)} min ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
+    const days = Math.round(hrs / 24);
+    return `${days} day${days === 1 ? "" : "s"} ago`;
+  }
+
+  function el(tag, props = {}, children = []) {
+    const node = Object.assign(document.createElement(tag), props);
+    node.append(...children);
+    return node;
+  }
+
+  function card(v) {
+    const isWatched = watched.has(v.id);
+    const player = el("div", { className: "player" });
+    const playBtn = el("button", { ariaLabel: `Play ${v.title}` }, [
+      el("img", { src: v.thumbnail, alt: "", loading: "lazy" }),
+      el("span", { className: "play" }),
+    ]);
+    playBtn.addEventListener("click", () => {
+      // rel=0 limits end-screen suggestions to the same channel.
+      const src = `https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1&rel=0&playsinline=1&modestbranding=1`;
+      player.replaceChildren(el("iframe", {
+        src, title: v.title, allowFullscreen: true,
+        allow: "autoplay; encrypted-media; picture-in-picture; fullscreen",
+      }));
+    });
+    player.append(playBtn);
+
+    const tick = el("button", { className: "tick", textContent: isWatched ? "Watched ✓" : "Mark watched" });
+    const node = el("article", { className: "card" + (isWatched ? " watched" : "") }, [
+      player,
+      el("div", { className: "meta" }, [
+        el("div", { className: "text" }, [
+          el("p", { className: "title", textContent: v.title }),
+          el("div", { className: "sub", textContent: `${v.channel} · ${ago(v.published)}` }),
+        ]),
+        tick,
+      ]),
+    ]);
+    tick.addEventListener("click", () => {
+      watched.has(v.id) ? watched.delete(v.id) : watched.add(v.id);
+      save();
+      if (view === "new" && watched.has(v.id)) render();
+      else {
+        node.classList.toggle("watched", watched.has(v.id));
+        tick.textContent = watched.has(v.id) ? "Watched ✓" : "Mark watched";
+        counts();
+      }
+    });
+    return node;
+  }
+
+  function counts() {
+    const unwatched = videos.filter(v => !watched.has(v.id)).length;
+    document.getElementById("count-new").textContent = unwatched;
+    document.getElementById("count-all").textContent = videos.length;
+  }
+
+  function render() {
+    const list = document.getElementById("list");
+    const shown = view === "new" ? videos.filter(v => !watched.has(v.id)) : videos;
+    counts();
+    if (!shown.length) {
+      list.replaceChildren(el("div", { className: "empty" }, [
+        el("strong", { textContent: view === "new" ? "All caught up." : "Nothing here yet." }),
+        document.createTextNode(view === "new" ? "That's everything. Go do something else." : "Check back after the next update."),
+      ]));
+      return;
+    }
+    list.replaceChildren(...shown.map(card));
+  }
+
+  document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
+    view = btn.dataset.view;
+    document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+    render();
+  }));
+
+  fetch("videos.json", { cache: "no-store" })
+    .then(r => r.json())
+    .then(data => {
+      videos = data.videos || [];
+      document.getElementById("updated").textContent = data.updated ? `Updated ${ago(data.updated)}` : "";
+      if (data.errors && data.errors.length) {
+        const warn = document.getElementById("warn");
+        warn.textContent = `Couldn't refresh: ${data.errors.join(", ")}`;
+        warn.hidden = false;
+      }
+      // Forget watched ticks for videos that have aged off the list.
+      const ids = new Set(videos.map(v => v.id));
+      watched = new Set([...watched].filter(id => ids.has(id)));
+      save();
+      render();
+    })
+    .catch(() => {
+      document.getElementById("list").replaceChildren(el("div", { className: "empty" }, [
+        el("strong", { textContent: "Couldn't load videos." }),
+        document.createTextNode("Try again in a bit."),
+      ]));
+    });
+</script>
+</body>
+</html>
