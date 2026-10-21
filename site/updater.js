@@ -1,20 +1,30 @@
-// "Update now" button, shared by all pages. It asks GitHub to run the same
-// update job as the twice-daily schedule, then reloads once it has finished.
+// Update button and auto-update, shared by all pages. Both ask GitHub to run
+// the same update job as the schedule, then reload once fresh data is live.
 //
-// It needs a GitHub fine-grained token with only "Actions: read and write"
-// on this one repository. The token is pasted in once and kept on this
-// device only; it is never part of the repository or the published site.
+// GitHub runs scheduled jobs late or not at all, so when a page is opened
+// and the data is more than STALE_MINUTES old, it starts an update itself
+// (if this device has a token and isn't in its cooldown). If another device
+// already started one, it waits for that instead of starting a second.
+//
+// The token is a GitHub fine-grained token with "Actions: Read and write" on
+// this repository, pasted in once and kept on this device only.
 (() => {
   const REPO = "custerdomecreative/my-youtube";
   const WORKFLOW = "update.yml";
   const COOLDOWN_MINUTES = 120;         // per device; change or set to 0
+  const STALE_MINUTES = 120;            // auto-update when data is older than this
   const KEYS = { token: "gh-token-v1", last: "update-last-v1", running: "update-running-v1" };
   const get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const set = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
   const api = (path, opts = {}) => fetch(`https://api.github.com/repos/${REPO}${path}`, {
-    ...opts,
+    cache: "no-store", ...opts,
     headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${get(KEYS.token)}`, ...(opts.headers || {}) },
   });
+  const dataUpdatedAt = async () => {
+    const data = await fetch(`videos.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
+    return data.updated ? new Date(data.updated).getTime() : 0;
+  };
 
   const header = document.querySelector("header");
   if (!header) return;
@@ -26,6 +36,7 @@
   updated.replaceWith(box);
   box.append(updated, btn);
 
+  let polling = false;
   const minutesLeft = () => {
     const last = Number(get(KEYS.last) || 0);
     return Math.ceil((last + COOLDOWN_MINUTES * 60000 - Date.now()) / 60000);
@@ -38,39 +49,101 @@
   }
 
   // GitHub's servers can keep serving the previous files for a few minutes
-  // after an update, so check the published data is newer than our request.
-  async function waitForFreshData(startedAt) {
+  // after an update, so check the published data is newer than the request.
+  async function waitForFreshData(since) {
     paint("Almost done…");
     const until = Date.now() + 5 * 60000;
     while (Date.now() < until) {
-      try {
-        const data = await fetch(`videos.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
-        if (data.updated && new Date(data.updated).getTime() >= startedAt - 60000) return;
-      } catch (e) { /* keep trying */ }
-      await new Promise(r => setTimeout(r, 5000));
+      try { if (await dataUpdatedAt() >= since - 60000) return; } catch (e) { /* keep trying */ }
+      await sleep(5000);
     }
   }
 
-  async function poll(startedAt) {
+  // Wait for any update run created after `since` (ours or another device's).
+  async function poll(since) {
+    if (polling) return;
+    polling = true;
     paint("Updating… (2–4 min)");
-    const deadline = startedAt + 12 * 60000;
-    while (Date.now() < deadline) {
-      await new Promise(r => setTimeout(r, 10000));
-      try {
-        const res = await api(`/actions/workflows/${WORKFLOW}/runs?event=workflow_dispatch&per_page=1`);
-        if (!res.ok) continue;
-        const run = (await res.json()).workflow_runs?.[0];
-        if (!run || new Date(run.created_at).getTime() < startedAt - 60000) continue;  // ours hasn't appeared yet
-        if (run.status !== "completed") continue;
-        set(KEYS.running, null);
-        if (run.conclusion === "success") { await waitForFreshData(startedAt); location.reload(); return; }
-        paint("Update failed — try later");
-        setTimeout(() => paint(), 15000);
-        return;
-      } catch (e) { /* keep waiting */ }
+    const deadline = since + 12 * 60000;
+    try {
+      while (Date.now() < deadline) {
+        await sleep(10000);
+        try {
+          const res = await api(`/actions/workflows/${WORKFLOW}/runs?per_page=1`);
+          if (!res.ok) continue;
+          const run = (await res.json()).workflow_runs?.[0];
+          if (!run || new Date(run.created_at).getTime() < since - 60000) continue;  // not started yet
+          if (run.status !== "completed") continue;
+          set(KEYS.running, null);
+          if (run.conclusion === "success") { await waitForFreshData(since); location.reload(); return; }
+          paint("Update failed — try later");
+          setTimeout(() => paint(), 15000);
+          return;
+        } catch (e) { /* keep waiting */ }
+      }
+      set(KEYS.running, null);
+      paint();
+    } finally {
+      polling = false;
     }
-    set(KEYS.running, null);
-    paint();
+  }
+
+  // Start an update run. `auto` runs stay silent on problems.
+  async function start(auto) {
+    paint(auto ? "Fetching new videos…" : "Starting…");
+    let res;
+    try {
+      res = await api(`/actions/workflows/${WORKFLOW}/dispatches`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref: "main" }),
+      });
+    } catch (e) {
+      if (!auto) { paint("Couldn't reach GitHub"); setTimeout(() => paint(), 8000); } else paint();
+      return;
+    }
+    if (res.status === 401) {
+      // Only forget a token GitHub says is invalid or expired.
+      set(KEYS.token, null);
+      if (!auto) alert("GitHub says that token is invalid or expired. Tap Update now again to enter a new one.");
+      return paint();
+    }
+    if (res.status === 403 || res.status === 404) {
+      if (!auto) alert("GitHub accepted the token but it can't run the update. Check it has access to my-youtube with \"Actions: Read and write\".");
+      return paint();
+    }
+    if (!res.ok) {
+      if (!auto) { paint("Update failed — try later"); setTimeout(() => paint(), 8000); } else paint();
+      return;
+    }
+    const now = Date.now();
+    set(KEYS.last, String(now));
+    set(KEYS.running, String(now));
+    poll(now);
+  }
+
+  // On opening or returning to a page: update if the data is stale.
+  let checking = false;
+  async function autoUpdate() {
+    if (checking || polling || !get(KEYS.token) || minutesLeft() > 0) return;
+    checking = true;
+    try {
+      const age = Date.now() - await dataUpdatedAt();
+      if (age < STALE_MINUTES * 60000) return;
+      // Another device may already be updating: join that run instead.
+      const res = await api(`/actions/workflows/${WORKFLOW}/runs?per_page=1`);
+      if (res.ok) {
+        const run = (await res.json()).workflow_runs?.[0];
+        const created = run ? new Date(run.created_at).getTime() : 0;
+        if (run && run.status !== "completed" && Date.now() - created < 10 * 60000) {
+          set(KEYS.running, String(created));
+          return poll(created);
+        }
+      }
+      await start(true);
+    } catch (e) {
+      /* offline or GitHub unreachable: try again next time */
+    } finally {
+      checking = false;
+    }
   }
 
   btn.addEventListener("click", async () => {
@@ -83,27 +156,13 @@
       set(KEYS.token, token.trim());
     }
     if (minutesLeft() > 0) return paint();
-    paint("Starting…");
-    let res;
-    try {
-      res = await api(`/actions/workflows/${WORKFLOW}/dispatches`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref: "main" }),
-      });
-    } catch (e) { paint("Couldn't reach GitHub"); setTimeout(() => paint(), 8000); return; }
-    if (res.status === 401 || res.status === 403 || res.status === 404) {
-      set(KEYS.token, null);
-      alert("GitHub didn't accept that token. Check it has \"Actions: Read and write\" on this repository, then try again.");
-      return paint();
-    }
-    if (!res.ok) { paint("Update failed — try later"); setTimeout(() => paint(), 8000); return; }
-    const now = Date.now();
-    set(KEYS.last, String(now));
-    set(KEYS.running, String(now));
-    poll(now);
+    start(false);
   });
 
   // Keep waiting if an update was started on another page or before a reload.
   const running = Number(get(KEYS.running) || 0);
-  if (running && Date.now() - running < 12 * 60000) poll(running); else { set(KEYS.running, null); paint(); }
-  setInterval(() => { if (!btn.textContent.startsWith("Updating")) paint(); }, 60000);
+  if (running && Date.now() - running < 12 * 60000) poll(running);
+  else { set(KEYS.running, null); paint(); autoUpdate(); }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) autoUpdate(); });
+  setInterval(() => { if (!polling) paint(); }, 60000);
 })();

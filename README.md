@@ -36,7 +36,10 @@ article text readable on the page where the site allows it (not NYT).
 ## Update now button
 
 Each page has an "Update now" button that runs the update workflow on demand
-(2-hour cooldown per device, set in `site/updater.js`). It needs a GitHub
+(2-hour cooldown per device, set in `site/updater.js`). Because GitHub runs
+scheduled jobs late or skips them, a page also starts an update by itself when
+it's opened and the data is more than 2 hours old (or joins one another device
+has already started). It needs a GitHub
 fine-grained token with access to this repository only and the permission
 "Actions: Read and write". The token is pasted in once per device and kept in
 that browser's storage; it is never committed or published.
