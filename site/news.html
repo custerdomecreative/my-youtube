@@ -323,7 +323,7 @@
 
   (async () => {
     try {
-      const status = await fetch("status.json", { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      const status = await fetch(`status.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
       if (status && status.configured === false) {
         showUnlock("News isn't set up yet: the NEWS_PASSWORD secret hasn't been added to the repository.");
         $("unlock-form").hidden = true;
@@ -331,7 +331,7 @@
       }
       const failed = (status?.sources || []).filter(s => s.error).map(s => s.name);
       if (failed.length) { $("warn").textContent = `Couldn't refresh: ${failed.join(", ")}`; $("warn").hidden = false; }
-      encrypted = await fetch("news.enc.json", { cache: "no-store" }).then(r => r.json());
+      encrypted = await fetch(`news.enc.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
       const key = await savedKey();
       if (key) {
         try { return start(await decrypt(key)); } catch (e) { /* password changed */ }

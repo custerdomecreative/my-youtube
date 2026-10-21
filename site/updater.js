@@ -37,6 +37,20 @@
     btn.textContent = left > 0 ? `Update available in ${left} min` : "↻ Update now";
   }
 
+  // GitHub's servers can keep serving the previous files for a few minutes
+  // after an update, so check the published data is newer than our request.
+  async function waitForFreshData(startedAt) {
+    paint("Almost done…");
+    const until = Date.now() + 5 * 60000;
+    while (Date.now() < until) {
+      try {
+        const data = await fetch(`videos.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
+        if (data.updated && new Date(data.updated).getTime() >= startedAt - 60000) return;
+      } catch (e) { /* keep trying */ }
+      await new Promise(r => setTimeout(r, 5000));
+    }
+  }
+
   async function poll(startedAt) {
     paint("Updating… (2–4 min)");
     const deadline = startedAt + 12 * 60000;
@@ -49,7 +63,7 @@
         if (!run || new Date(run.created_at).getTime() < startedAt - 60000) continue;  // ours hasn't appeared yet
         if (run.status !== "completed") continue;
         set(KEYS.running, null);
-        if (run.conclusion === "success") { location.reload(); return; }
+        if (run.conclusion === "success") { await waitForFreshData(startedAt); location.reload(); return; }
         paint("Update failed — try later");
         setTimeout(() => paint(), 15000);
         return;

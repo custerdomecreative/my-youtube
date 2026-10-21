@@ -185,7 +185,7 @@
     render();
   });
 
-  fetch("videos.json", { cache: "no-store" })
+  fetch(`videos.json?t=${Date.now()}`, { cache: "no-store" })
     .then(r => r.json())
     .then(data => {
       videos = data.videos || [];

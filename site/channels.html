@@ -146,7 +146,7 @@
       el("div", { className: "empty", textContent: "Loading…" }));
     if (!loaded[id]) {
       try {
-        const data = await fetch(`catalog/${id}.json`, { cache: "no-store" }).then(r => r.json());
+        const data = await fetch(`catalog/${id}.json?v=${encodeURIComponent(index.updated || "")}`).then(r => r.json());
         loaded[id] = data.videos.map(([vid, title, published, secs, views]) => ({
           id: vid, title, published, secs, views, channel: info.name,
           thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
@@ -211,7 +211,7 @@
   }
   window.addEventListener("hashchange", route);
 
-  fetch("catalog/index.json", { cache: "no-store" })
+  fetch(`catalog/index.json?t=${Date.now()}`, { cache: "no-store" })
     .then(r => r.json())
     .then(data => {
       index = data;
