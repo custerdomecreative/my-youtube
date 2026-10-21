@@ -131,3 +131,21 @@ body.no-scroll { overflow: hidden; }
 .music-link { text-decoration: none; text-align: center; }
 @media (hover: hover) and (pointer: fine) { .music-link { display: none; } }
 .sync-status { color: var(--muted); font-size: 11px; }
+/* Top row: section switch + Reload / Block buttons */
+.topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+.topbar .switch { margin-bottom: 0; }
+.top-tools { display: flex; gap: 6px; margin-left: auto; }
+.top-btn {
+  border: 1px solid var(--line); background: transparent; color: var(--muted);
+  border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.top-btn.attention { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+/* Block screen */
+html.blocked body > *:not(.blocked-screen) { display: none !important; }
+.blocked-screen {
+  position: fixed; inset: 0; display: grid; place-items: center; text-align: center;
+  padding: 24px; background: var(--bg); color: var(--ink);
+}
+.blocked-screen h1 { margin: 8px 0 10px; }
+.blocked-screen p { color: var(--muted); margin: 4px 0; font-size: 16px; }
+.blocked-icon { font-size: 44px; }

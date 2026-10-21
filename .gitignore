@@ -4,3 +4,4 @@ site/status.json
 .cache/
 __pycache__/
 site/catalog/
+site/version.json

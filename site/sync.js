@@ -45,7 +45,14 @@
   }
 
   // Watch the pages' own saves, so they need no changes of their own.
+  const BLOCK_KEY = "block-until-v1";   // set by toolbar.js; the latest block wins
   Storage.prototype.setItem = function (key, value) {
+    if (this === localStorage && key === BLOCK_KEY) {
+      rawSet.call(this, key, value);
+      meta.blockUntil = Math.max(meta.blockUntil || 0, Number(value) || 0);
+      write(META_KEY, meta); schedule();
+      return;
+    }
     if (this !== localStorage || !TRACKED[key]) return rawSet.call(this, key, value);
     const before = read(key, []);
     rawSet.call(this, key, value);
@@ -61,6 +68,7 @@
         if (!(id in out[kind]) || stamp(kind, e) > stamp(kind, out[kind][id])) out[kind][id] = e;
       }
     }
+    out.blockUntil = Math.max((a && a.blockUntil) || 0, (b && b.blockUntil) || 0);
     return out;
   }
   function prune(m) {
@@ -69,7 +77,7 @@
     for (const kind of LISTS) for (const [id, e] of Object.entries(m[kind])) if (!e.item && e.t < cutoff) delete m[kind][id];
     return m;
   }
-  const same = (a, b) => [...SETS, ...LISTS].every(kind => {
+  const same = (a, b) => ((a && a.blockUntil) || 0) === ((b && b.blockUntil) || 0) && [...SETS, ...LISTS].every(kind => {
     const x = (a && a[kind]) || {}, y = (b && b[kind]) || {};
     const keys = Object.keys(x);
     return keys.length === Object.keys(y).length && keys.every(id => JSON.stringify(x[id]) === JSON.stringify(y[id]));
@@ -78,6 +86,8 @@
   // Write the merged state back into the keys the pages read. True if anything changed.
   function apply() {
     let changed = false;
+    // A block from another device: toolbar.js notices this and shows the block screen.
+    if ((meta.blockUntil || 0) > Number(read(BLOCK_KEY, 0) || 0)) rawSet.call(localStorage, BLOCK_KEY, String(meta.blockUntil));
     for (const kind of SETS) {
       const ids = Object.entries(meta[kind]).filter(([, ts]) => ts > 0).sort((a, b) => a[1] - b[1]).map(([id]) => id);
       const current = read(KIND_KEY[kind], []);

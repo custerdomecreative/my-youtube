@@ -51,3 +51,10 @@ devices by storing them in `state.json` in the private repository
 `custerdomecreative/my-youtube-state`. Each change is timestamped and the most
 recent change to each item wins. It uses the same device-only token as the
 Update button, which also needs "Contents: Read and write" on that repository.
+
+## Reload and Block
+
+- **⟳ Reload app** reloads the page from GitHub, skipping cached copies. Each
+  deploy stamps the commit into `version.json` and the asset URLs, and pages
+  reload themselves once when they see a newer version.
+- **Block 1 hr** hides all pages until the time is up, on every synced device.
