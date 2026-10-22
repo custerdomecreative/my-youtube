@@ -149,3 +149,10 @@ html.blocked body > *:not(.blocked-screen) { display: none !important; }
 .blocked-screen h1 { margin: 8px 0 10px; }
 .blocked-screen p { color: var(--muted); margin: 4px 0; font-size: 16px; }
 .blocked-icon { font-size: 44px; }
+/* Resume marker on thumbnails */
+.player .resume-label {
+  position: absolute; left: 10px; bottom: 14px; padding: 3px 8px; border-radius: 6px;
+  background: rgba(0, 0, 0, 0.75); color: #fff; font-size: 12px; font-weight: 600;
+}
+.player .progress-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, 0.35); }
+.player .progress-bar span { display: block; height: 100%; background: var(--accent); }

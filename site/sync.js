@@ -46,7 +46,22 @@
 
   // Watch the pages' own saves, so they need no changes of their own.
   const BLOCK_KEY = "block-until-v1";   // set by toolbar.js; the latest block wins
+  const PROGRESS_KEY = "progress-v1";   // set by player.js: { id: [seconds, duration] }
   Storage.prototype.setItem = function (key, value) {
+    if (this === localStorage && key === PROGRESS_KEY) {
+      const before = read(key, {});
+      rawSet.call(this, key, value);
+      try {
+        const after = JSON.parse(value), t = Date.now();
+        meta.progress = meta.progress || {};
+        for (const id of new Set([...Object.keys(before), ...Object.keys(after)])) {
+          if (JSON.stringify(before[id]) !== JSON.stringify(after[id])) meta.progress[id] = { t, v: after[id] || null };
+        }
+        write(META_KEY, meta);
+        scheduleSlow();
+      } catch (e) {}
+      return;
+    }
     if (this === localStorage && key === BLOCK_KEY) {
       rawSet.call(this, key, value);
       meta.blockUntil = Math.max(meta.blockUntil || 0, Number(value) || 0);
@@ -69,15 +84,23 @@
       }
     }
     out.blockUntil = Math.max((a && a.blockUntil) || 0, (b && b.blockUntil) || 0);
+    out.progress = { ...((a && a.progress) || {}) };
+    for (const [id, e] of Object.entries((b && b.progress) || {})) {
+      if (!(id in out.progress) || e.t > out.progress[id].t) out.progress[id] = e;
+    }
     return out;
   }
   function prune(m) {
     const cutoff = Date.now() - TOMBSTONE_DAYS * 86400000;
     for (const kind of SETS) for (const [id, ts] of Object.entries(m[kind])) if (ts < 0 && -ts < cutoff) delete m[kind][id];
     for (const kind of LISTS) for (const [id, e] of Object.entries(m[kind])) if (!e.item && e.t < cutoff) delete m[kind][id];
+    const progressCutoff = Date.now() - 90 * 86400000;
+    for (const [id, e] of Object.entries(m.progress || {})) if (e.t < progressCutoff || (!e.v && e.t < cutoff)) delete m.progress[id];
     return m;
   }
-  const same = (a, b) => ((a && a.blockUntil) || 0) === ((b && b.blockUntil) || 0) && [...SETS, ...LISTS].every(kind => {
+  const same = (a, b) => ((a && a.blockUntil) || 0) === ((b && b.blockUntil) || 0)
+    && JSON.stringify(Object.entries((a && a.progress) || {}).sort()) === JSON.stringify(Object.entries((b && b.progress) || {}).sort())
+    && [...SETS, ...LISTS].every(kind => {
     const x = (a && a[kind]) || {}, y = (b && b[kind]) || {};
     const keys = Object.keys(x);
     return keys.length === Object.keys(y).length && keys.every(id => JSON.stringify(x[id]) === JSON.stringify(y[id]));
@@ -88,6 +111,10 @@
     let changed = false;
     // A block from another device: toolbar.js notices this and shows the block screen.
     if ((meta.blockUntil || 0) > Number(read(BLOCK_KEY, 0) || 0)) rawSet.call(localStorage, BLOCK_KEY, String(meta.blockUntil));
+    // Positions from other devices: picked up the next time a video's card is drawn.
+    const positions = {};
+    for (const [id, e] of Object.entries(meta.progress || {})) if (e.v) positions[id] = e.v;
+    if (JSON.stringify(positions) !== JSON.stringify(read(PROGRESS_KEY, {}))) rawSet.call(localStorage, PROGRESS_KEY, JSON.stringify(positions));
     for (const kind of SETS) {
       const ids = Object.entries(meta[kind]).filter(([, ts]) => ts > 0).sort((a, b) => a[1] - b[1]).map(([id]) => id);
       const current = read(KIND_KEY[kind], []);
@@ -166,11 +193,23 @@
     else location.reload();
   }
 
-  let timer;
-  function schedule() { clearTimeout(timer); timer = setTimeout(sync, 1500); }
+  let timer, slowTimer = null;
+  function schedule() { clearTimeout(timer); clearTimeout(slowTimer); slowTimer = null; timer = setTimeout(sync, 1500); }
+  // Positions change every few seconds while watching: send them about once a minute.
+  // When the page is hidden (phone locked, app switched) timers may not run for long,
+  // so send the first change straight away, then at most once a minute.
+  let lastHiddenSend = 0;
+  function scheduleSlow() {
+    if (document.hidden && Date.now() - lastHiddenSend > 60000) { lastHiddenSend = Date.now(); return schedule(); }
+    if (!slowTimer) slowTimer = setTimeout(() => { slowTimer = null; sync(); }, 60000);
+  }
 
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) return;
+    if (document.hidden) {
+      // Leaving or locking the phone: send any batched positions now.
+      if (slowTimer) { clearTimeout(slowTimer); slowTimer = null; setTimeout(sync, 300); }
+      return;
+    }
     if (pendingReload && !document.querySelector(".player iframe, .reader, .pseudo-fs")) return location.reload();
     sync();
   });

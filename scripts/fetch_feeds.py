@@ -8,6 +8,8 @@ Each channel needs a "name" plus either an "id" (starts with UC) or a
 import json
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
@@ -33,10 +35,34 @@ HEADERS = {
 }
 
 
-def get(url: str) -> str:
-    req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+PUBLISHED = "https://custerdomecreative.github.io/my-youtube/videos.json"
+
+
+def get(url: str, attempts: int = 3) -> str:
+    """GET with retries: YouTube's feeds have brief outages."""
+    for attempt in range(attempts):
+        try:
+            req = urllib.request.Request(url, headers=HEADERS)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return resp.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404 or attempt == attempts - 1:
+                raise
+        except Exception:
+            if attempt == attempts - 1:
+                raise
+        time.sleep(3 * (attempt + 1))
+
+
+def previous_list() -> dict:
+    """The currently published list, used for any channel that fails."""
+    try:
+        req = urllib.request.Request(f"{PUBLISHED}?t={int(time.time())}", headers={"User-Agent": HEADERS["User-Agent"]})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read())
+    except Exception as exc:
+        print(f"Couldn't load the published list ({type(exc).__name__})", file=sys.stderr)
+        return {}
 
 
 def resolve_handle(handle: str) -> str:
@@ -91,6 +117,7 @@ def main() -> int:
     channels = json.loads(CHANNELS_FILE.read_text())
     cutoff = datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS)
     videos, errors = [], []
+    previous = None
 
     for channel in channels:
         try:
@@ -98,24 +125,32 @@ def main() -> int:
             print(f"{channel['name']}: {len(found)} videos")
             videos.extend(found)
         except Exception as exc:  # one broken channel shouldn't sink the rest
-            print(f"{channel['name']}: FAILED ({exc})", file=sys.stderr)
+            print(f"{channel['name']}: FAILED ({exc}); keeping its previous videos", file=sys.stderr)
             errors.append(channel["name"])
+            if previous is None:
+                previous = previous_list()
+            videos.extend(v for v in previous.get("videos", []) if v.get("channel") == channel["name"])
 
     videos = [v for v in videos
               if not v["published"]
               or datetime.fromisoformat(v["published"]) >= cutoff]
     videos.sort(key=lambda v: v["published"], reverse=True)
 
+    all_failed = bool(channels) and len(errors) == len(channels)
+    if all_failed and not (previous or {}).get("videos"):
+        print("Every channel failed and there's no previous list to fall back on.", file=sys.stderr)
+        return 1
+    # If nothing could be fetched, keep the old timestamp so pages know the
+    # list is stale and try again.
+    updated = (previous or {}).get("updated") if all_failed else None
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.write_text(json.dumps({
-        "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "updated": updated or datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "errors": errors,
         "videos": videos,
     }, indent=2))
     print(f"Wrote {len(videos)} videos to {OUTPUT_FILE.relative_to(ROOT)}")
-    # Fail the run only if every channel failed, so you hear about it.
-    return 1 if channels and len(errors) == len(channels) else 0
-
+    return 0
 
 if __name__ == "__main__":
     sys.exit(main())
