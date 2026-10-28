@@ -27,7 +27,9 @@
   <div class="toolbar">
     <div class="tabs" role="group" aria-label="View">
       <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="count-new"></span></button>
+      <button class="tab" data-view="playing" aria-pressed="false">Playing<span class="count" id="count-playing"></span></button>
       <button class="tab" data-view="later" aria-pressed="false">Later<span class="count" id="count-later"></span></button>
+      <button class="tab" data-view="favs" aria-pressed="false">★<span class="count" id="count-favs"></span></button>
       <button class="tab" data-view="all" aria-pressed="false">All<span class="count" id="count-all"></span></button>
     </div>
     <select class="channel-filter" id="channel" aria-label="Filter by channel"></select>
@@ -64,6 +66,8 @@
   function inView(name) {
     if (name === "new") return videos.filter(v => !watched.has(v.id) && !isLater(v.id));
     if (name === "later") return later;
+    if (name === "playing") return getPlaying().filter(v => !watched.has(v.id));
+    if (name === "favs") return getFavourites().slice().reverse();   // newest first
     return videos;
   }
   const byChannel = list => channel ? list.filter(v => v.channel === channel) : list;
@@ -81,7 +85,7 @@
           el("p", { className: "title", textContent: v.title }),
           el("div", { className: "sub", textContent: `${v.channel} · ${ago(v.published)}` }),
         ]),
-        el("div", { className: "actions" }, [laterBtn, tick, musicLink(v)]),
+        el("div", { className: "actions" }, [laterBtn, tick, favButton(v, () => { if (!belongs(v)) render(); else counts(); }), musicLink(v)]),
       ]),
     ]);
 
@@ -104,7 +108,7 @@
     });
     tick.addEventListener("click", () => {
       if (watched.has(v.id)) watched.delete(v.id);
-      else { watched.add(v.id); later = later.filter(x => x.id !== v.id); }
+      else { watched.add(v.id); later = later.filter(x => x.id !== v.id); clearProgress(v.id); }
       afterChange();
     });
     paint();
@@ -112,7 +116,7 @@
   }
 
   function counts() {
-    for (const name of ["new", "later", "all"]) {
+    for (const name of ["new", "playing", "later", "favs", "all"]) {
       document.getElementById(`count-${name}`).textContent = byChannel(inView(name)).length;
     }
     updateBulk();
@@ -120,7 +124,7 @@
 
   function buildChannelMenu() {
     const select = document.getElementById("channel");
-    const names = [...new Set([...videos, ...later].map(v => v.channel))]
+    const names = [...new Set([...videos, ...later, ...getPlaying(), ...getFavourites()].map(v => v.channel).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
     if (channel && !names.includes(channel)) channel = "";
     select.replaceChildren(
@@ -137,7 +141,9 @@
     if (!shown.length) {
       const msgs = {
         new: ["All caught up.", "That's everything. Go do something else."],
+        playing: ["Nothing in progress.", "Videos you've started but not finished show up here."],
         later: ["Nothing saved.", "Tap “Watch later” on a video to keep it here."],
+        favs: ["No favourites yet.", "Tap “☆ Favourite” on any video to keep it here for good."],
         all: ["Nothing here yet.", "Check back after the next update."],
       };
       const [title, text] = msgs[view];
@@ -167,7 +173,7 @@
       clearUndo();
     } else {
       undo = byChannel(inView("new")).map(x => x.id);
-      undo.forEach(id => watched.add(id));
+      undo.forEach(id => watched.add(id));   // Playing hides watched videos, so Undo stays lossless
       undoTimer = setTimeout(() => { undo = null; updateBulk(); }, 8000);
     }
     saveState();

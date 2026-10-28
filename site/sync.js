@@ -11,8 +11,8 @@
   const TOKEN_KEY = "gh-token-v1";
   const META_KEY = "sync-meta-v1";
   // localStorage key -> kind. Sets hold ids; lists hold saved items.
-  const TRACKED = { "watched-v1": "watched", "news-read-v1": "read", "later-v1": "videoLater", "news-later-v1": "newsLater" };
-  const SETS = ["watched", "read"], LISTS = ["videoLater", "newsLater"];
+  const TRACKED = { "watched-v1": "watched", "news-read-v1": "read", "later-v1": "videoLater", "news-later-v1": "newsLater", "favourites-v1": "favourites" };
+  const SETS = ["watched", "read"], LISTS = ["videoLater", "newsLater", "favourites"];
   const KIND_KEY = Object.fromEntries(Object.entries(TRACKED).map(([k, v]) => [v, k]));
   const TOMBSTONE_DAYS = 30;
 
@@ -30,6 +30,9 @@
     for (const kind of LISTS) meta[kind] = Object.fromEntries(read(KIND_KEY[kind], []).map((item, i) => [item.id, { t: 1 + i, item }]));
     write(META_KEY, meta);
   }
+  // Kinds added after a device first synced start empty, adopting what's on the device.
+  for (const kind of SETS) if (!meta[kind]) meta[kind] = Object.fromEntries(read(KIND_KEY[kind], []).map(id => [id, 1]));
+  for (const kind of LISTS) if (!meta[kind]) meta[kind] = Object.fromEntries(read(KIND_KEY[kind], []).map((item, i) => [item.id, { t: 1 + i, item }]));
 
   function record(kind, before, after) {
     const t = Date.now();
@@ -46,8 +49,25 @@
 
   // Watch the pages' own saves, so they need no changes of their own.
   const BLOCK_KEY = "block-until-v1";   // set by toolbar.js; the latest block wins
-  const PROGRESS_KEY = "progress-v1";   // set by player.js: { id: [seconds, duration] }
+  const PROGRESS_KEY = "progress-v1";   // set by player.js: { id: [seconds, duration, details, savedAt] }
+  const USAGE_KEY = "search-usage-v1";   // set by search.js: { date: { deviceId: count } }
+  // JSON with object keys sorted, so equal data always compares equal.
+  const sortDeep = v => (v && typeof v === "object" && !Array.isArray(v)) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a < b ? -1 : 1).map(([k, x]) => [k, sortDeep(x)])) : v;
+  const canon = o => JSON.stringify(sortDeep(o));
+  function mergeUsage(a, b) {
+    const out = JSON.parse(JSON.stringify(a || {}));
+    for (const [day, devs] of Object.entries(b || {})) {
+      out[day] = out[day] || {};
+      for (const [dev, n] of Object.entries(devs)) out[day][dev] = Math.max(out[day][dev] || 0, n);
+    }
+    return out;
+  }
   Storage.prototype.setItem = function (key, value) {
+    if (this === localStorage && key === USAGE_KEY) {
+      rawSet.call(this, key, value);
+      try { meta.searches = mergeUsage(meta.searches, JSON.parse(value)); write(META_KEY, meta); schedule(); } catch (e) {}
+      return;
+    }
     if (this === localStorage && key === PROGRESS_KEY) {
       const before = read(key, {});
       rawSet.call(this, key, value);
@@ -84,6 +104,7 @@
       }
     }
     out.blockUntil = Math.max((a && a.blockUntil) || 0, (b && b.blockUntil) || 0);
+    out.searches = mergeUsage(a && a.searches, b && b.searches);
     out.progress = { ...((a && a.progress) || {}) };
     for (const [id, e] of Object.entries((b && b.progress) || {})) {
       if (!(id in out.progress) || e.t > out.progress[id].t) out.progress[id] = e;
@@ -94,11 +115,14 @@
     const cutoff = Date.now() - TOMBSTONE_DAYS * 86400000;
     for (const kind of SETS) for (const [id, ts] of Object.entries(m[kind])) if (ts < 0 && -ts < cutoff) delete m[kind][id];
     for (const kind of LISTS) for (const [id, e] of Object.entries(m[kind])) if (!e.item && e.t < cutoff) delete m[kind][id];
+    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString("en-CA");
+    for (const day of Object.keys(m.searches || {})) if (day < yesterday) delete m.searches[day];
     const progressCutoff = Date.now() - 90 * 86400000;
     for (const [id, e] of Object.entries(m.progress || {})) if (e.t < progressCutoff || (!e.v && e.t < cutoff)) delete m.progress[id];
     return m;
   }
   const same = (a, b) => ((a && a.blockUntil) || 0) === ((b && b.blockUntil) || 0)
+    && canon((a && a.searches) || {}) === canon((b && b.searches) || {})
     && JSON.stringify(Object.entries((a && a.progress) || {}).sort()) === JSON.stringify(Object.entries((b && b.progress) || {}).sort())
     && [...SETS, ...LISTS].every(kind => {
     const x = (a && a[kind]) || {}, y = (b && b[kind]) || {};
@@ -111,6 +135,8 @@
     let changed = false;
     // A block from another device: toolbar.js notices this and shows the block screen.
     if ((meta.blockUntil || 0) > Number(read(BLOCK_KEY, 0) || 0)) rawSet.call(localStorage, BLOCK_KEY, String(meta.blockUntil));
+    // Searches used on other devices count towards today's allowance here too.
+    if (canon(meta.searches || {}) !== canon(read(USAGE_KEY, {}))) rawSet.call(localStorage, USAGE_KEY, JSON.stringify(meta.searches || {}));
     // Positions from other devices: picked up the next time a video's card is drawn.
     const positions = {};
     for (const [id, e] of Object.entries(meta.progress || {})) if (e.v) positions[id] = e.v;

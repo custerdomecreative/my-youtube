@@ -50,11 +50,16 @@ jobs:
         run: |
           pip install --quiet feedparser trafilatura cryptography requests
           python scripts/fetch_news.py
+      - name: Search key
+        # Restricted to this site and YouTube searches, so it's meant to be public.
+        env:
+          YOUTUBE_SEARCH_KEY: ${{ secrets.YOUTUBE_SEARCH_KEY }}
+        run: python3 -c 'import json,os; open("site/search-config.js","w").write("window.SEARCH_KEY = %s;\n" % json.dumps(os.environ.get("YOUTUBE_SEARCH_KEY","")))'
       - name: Stamp build version
         # Asset URLs get ?v=<commit> so phones fetch new code when it changes.
         run: |
           V="${GITHUB_SHA::8}"
-          sed -i -E "s/(href|src)=\"(style\.css|player\.js|sync\.js|toolbar\.js|updater\.js)\"/\1=\"\2?v=$V\"/g; s/__BUILD__/$V/" site/*.html
+          sed -i -E "s/(href|src)=\"(style\.css|player\.js|sync\.js|toolbar\.js|updater\.js|search\.js|search-config\.js)\"/\1=\"\2?v=$V\"/g; s/__BUILD__/$V/" site/*.html
           printf '{"build":"%s"}' "$V" > site/version.json
       - uses: actions/upload-pages-artifact@v3
         with:

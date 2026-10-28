@@ -50,23 +50,59 @@ document.addEventListener("keydown", e => {
 });
 
 
-// --- Resume where you left off ---
-// Positions are saved as { videoId: [seconds, duration] } and synced
-// between devices by sync.js. Uses YouTube's official iframe player API.
+// --- Resume where you left off, and the Playing tab ---
+// Positions are saved as { videoId: [seconds, duration, details, savedAt] }
+// and synced between devices by sync.js. Uses YouTube's iframe player API.
 const PROGRESS_KEY = "progress-v1";
 function getProgress() { try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || "{}"); } catch (e) { return {}; } }
-function saveProgress(id, seconds, duration) {
+function writeProgress(all) { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(all)); } catch (e) {} }
+function saveProgress(v, seconds, duration) {
   const all = getProgress();
   // Near the end counts as finished: forget it, so it starts from the beginning next time.
-  if (!seconds || seconds < 10 || (duration && seconds > duration - 20)) delete all[id];
-  else all[id] = [Math.floor(seconds), Math.floor(duration || 0)];
+  if (!seconds || seconds < 10 || (duration && seconds > duration - 20)) delete all[v.id];
+  else all[v.id] = [Math.floor(seconds), Math.floor(duration || 0),
+    { t: v.title, c: v.channel, th: v.thumbnail, p: v.published || "" }, Date.now()];
   const ids = Object.keys(all);
-  if (ids.length > 500) ids.slice(0, ids.length - 500).forEach(k => delete all[k]);
-  try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(all)); } catch (e) {}
+  if (ids.length > 300) ids.sort((a, b) => (all[a][3] || 0) - (all[b][3] || 0)).slice(0, ids.length - 300).forEach(k => delete all[k]);
+  writeProgress(all);
+}
+function clearProgress(id) {
+  const all = getProgress();
+  if (id in all) { delete all[id]; writeProgress(all); }
+}
+// Partly watched videos, most recently played first.
+function getPlaying() {
+  return Object.entries(getProgress())
+    .filter(([, p]) => p[2])
+    .sort((a, b) => (b[1][3] || 0) - (a[1][3] || 0))
+    .map(([id, p]) => ({ id, title: p[2].t, channel: p[2].c, thumbnail: p[2].th || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, published: p[2].p }));
 }
 function clock(s) {
   const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, sec = String(Math.floor(s % 60)).padStart(2, "0");
   return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+}
+
+// --- Favourites: videos kept long term (synced by sync.js, never pruned) ---
+const FAV_KEY = "favourites-v1";
+function getFavourites() { try { return JSON.parse(localStorage.getItem(FAV_KEY) || "[]"); } catch (e) { return []; } }
+const isFavourite = id => getFavourites().some(x => x.id === id);
+function toggleFavourite(v) {
+  let favs = getFavourites();
+  if (favs.some(x => x.id === v.id)) favs = favs.filter(x => x.id !== v.id);
+  else favs.push({ id: v.id, title: v.title, channel: v.channel, thumbnail: v.thumbnail, published: v.published || "", secs: v.secs || 0 });
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch (e) {}
+}
+// A star button for any card. `onChange` lets the page redraw if needed.
+function favButton(v, onChange) {
+  const btn = el("button", { className: "tick fav" });
+  const paint = () => {
+    const on = isFavourite(v.id);
+    btn.classList.toggle("on", on);
+    btn.textContent = on ? "★ Favourite" : "☆ Favourite";
+  };
+  btn.addEventListener("click", () => { toggleFavourite(v); paint(); if (onChange) onChange(); });
+  paint();
+  return btn;
 }
 
 let ytApi = null;
@@ -82,14 +118,14 @@ function loadYouTubeApi() {
 const activePlayers = new Set();
 function saveAll() {
   activePlayers.forEach(p => {
-    try { saveProgress(p.videoId, p.getCurrentTime(), p.getDuration()); } catch (e) {}
+    try { saveProgress(p.video, p.getCurrentTime(), p.getDuration()); } catch (e) {}
   });
 }
 // Save when you leave the page or lock the phone, and every few seconds while playing.
 document.addEventListener("visibilitychange", () => { if (document.hidden) saveAll(); });
 window.addEventListener("pagehide", saveAll);
 setInterval(() => activePlayers.forEach(p => {
-  try { if (p.getPlayerState() === 1) saveProgress(p.videoId, p.getCurrentTime(), p.getDuration()); } catch (e) {}
+  try { if (p.getPlayerState() === 1) saveProgress(p.video, p.getCurrentTime(), p.getDuration()); } catch (e) {}
 }), 5000);
 
 // A thumbnail that becomes the embedded player when tapped.
@@ -125,12 +161,12 @@ function makePlayer(v) {
       const yt = new YT.Player(iframe, {
         events: {
           onStateChange: e => {
-            if (e.data === 2) saveProgress(v.id, yt.getCurrentTime(), yt.getDuration());   // paused
-            if (e.data === 0) saveProgress(v.id, 0, 0);                                    // finished
+            if (e.data === 2) saveProgress(v, yt.getCurrentTime(), yt.getDuration());   // paused
+            if (e.data === 0) saveProgress(v, 0, 0);                                       // finished
           },
         },
       });
-      yt.videoId = v.id;
+      yt.video = v;
       activePlayers.add(yt);
     }).catch(() => { /* still plays; just no resume */ });
   });

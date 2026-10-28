@@ -5,3 +5,4 @@ site/status.json
 __pycache__/
 site/catalog/
 site/version.json
+site/search-config.js

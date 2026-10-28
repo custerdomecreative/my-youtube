@@ -48,6 +48,8 @@
 </div>
 
 <script src="player.js"></script>
+<script src="search-config.js"></script>
+<script src="search.js"></script>
 <script>
   // Watched ticks and Watch Later are shared with the Videos page.
   const KEYS = { watched: "watched-v1", later: "later-v1", sort: "catalog-sort-v1", hideWatched: "catalog-hide-v1" };
@@ -90,7 +92,7 @@
           el("p", { className: "title", textContent: v.title }),
           el("div", { className: "sub", textContent: meta }),
         ]),
-        el("div", { className: "actions" }, [laterBtn, tick, musicLink(v)]),
+        el("div", { className: "actions" }, [laterBtn, tick, favButton(v), musicLink(v)]),
       ]),
     ]);
     function paint() {
@@ -113,7 +115,7 @@
     tick.addEventListener("click", () => {
       const w = getWatched();
       if (w.has(v.id)) w.delete(v.id);
-      else { w.add(v.id); store(KEYS.later, getLater().filter(x => x.id !== v.id)); }
+      else { w.add(v.id); store(KEYS.later, getLater().filter(x => x.id !== v.id)); clearProgress(v.id); }
       store(KEYS.watched, [...w]);
       paint();
       if (state.hideWatched && w.has(v.id)) node.remove();
@@ -122,11 +124,13 @@
     return node;
   }
 
+  const searchMeta = v => [v.channel, when(v.published), duration(v.secs)].filter(Boolean).join(" · ");
   function showIndex() {
     document.title = "Channels";
     const main = document.getElementById("main");
+    const search = searchPanel(card, searchMeta);
     if (!index.configured) {
-      main.replaceChildren(el("div", { className: "empty" }, [
+      main.replaceChildren(search, el("div", { className: "empty" }, [
         el("strong", { textContent: "Not set up yet." }),
         document.createTextNode("Add the YOUTUBE_API_KEY secret to the repository to browse full channel catalogues."),
       ]));
@@ -136,7 +140,7 @@
       document.createTextNode(c.name),
       el("span", { textContent: c.error && !c.count ? "Couldn't load" : `${c.count.toLocaleString()} videos` }),
     ]));
-    main.replaceChildren(el("div", { className: "channel-list" }, rows));
+    main.replaceChildren(search, el("div", { className: "channel-list" }, rows));
   }
 
   async function showChannel(id) {
