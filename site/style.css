@@ -172,3 +172,9 @@ html.blocked body > *:not(.blocked-screen) { display: none !important; }
 /* Five view tabs: keep them on one line on phones, wrap if still too wide */
 .tabs { flex-wrap: wrap; }
 @media (max-width: 430px) { .tab { padding: 7px 10px; } .tab .count { margin-left: 3px; } }
+.search-tools { display: flex; gap: 6px; align-items: center; }
+.search-sort {
+  font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.search-results > .list { margin-top: 12px; }

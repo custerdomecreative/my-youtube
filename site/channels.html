@@ -132,7 +132,7 @@
   }
   const searchMeta = v => v.live ? `${v.channel} · 🔴 Live now`
     : v.upcoming ? `${v.channel} · Upcoming, starts ${startTime(v.upcoming)}`
-    : [v.channel, when(v.published), duration(v.secs)].filter(Boolean).join(" · ");
+    : [v.channel, when(v.published), duration(v.secs), views(v.views)].filter(Boolean).join(" · ");
   function showIndex() {
     document.title = "Channels";
     const main = document.getElementById("main");
