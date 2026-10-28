@@ -6,8 +6,8 @@
 // YOUTUBE_SEARCH_KEY secret. It's restricted to this site and to YouTube
 // searches, in its own Google Cloud project with its own quota.
 const SEARCH = {
-  DAILY_LIMIT: 5,
-  RESULTS: 6,
+  DAILY_LIMIT: 10,
+  RESULTS: 20,
   MIN_SECONDS: 181,              // Shorts can be up to 3 minutes
   USAGE_KEY: "search-usage-v1",  // { "2026-10-28": { deviceId: count } }
   DEVICE_KEY: "device-id-v1",
@@ -44,7 +44,7 @@ async function runSearch(query) {
   const api = (path, params) => fetch(`https://www.googleapis.com/youtube/v3/${path}?${new URLSearchParams({ ...params, key })}`)
     .then(async r => { if (!r.ok) throw new Error(r.status === 403 ? "quota" : "http"); return r.json(); });
   const found = await api("search", {
-    part: "snippet", type: "video", maxResults: 15, q: query,
+    part: "snippet", type: "video", maxResults: 50, q: query,   // extra, since Shorts and live streams are filtered out
     relevanceLanguage: "en", regionCode: "IE", safeSearch: "none",
   });
   const items = (found.items || []).filter(i => i.id?.videoId && i.snippet?.liveBroadcastContent === "none");
