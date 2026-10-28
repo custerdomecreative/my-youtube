@@ -124,7 +124,15 @@
     return node;
   }
 
-  const searchMeta = v => [v.channel, when(v.published), duration(v.secs)].filter(Boolean).join(" · ");
+  function startTime(iso) {
+    if (!iso || iso === "soon") return "soon";
+    const d = new Date(iso), today = new Date().toDateString() === d.toDateString();
+    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return today ? `today ${time}` : `${d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })} ${time}`;
+  }
+  const searchMeta = v => v.live ? `${v.channel} · 🔴 Live now`
+    : v.upcoming ? `${v.channel} · Upcoming, starts ${startTime(v.upcoming)}`
+    : [v.channel, when(v.published), duration(v.secs)].filter(Boolean).join(" · ");
   function showIndex() {
     document.title = "Channels";
     const main = document.getElementById("main");

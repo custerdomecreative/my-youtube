@@ -47,19 +47,26 @@ async function runSearch(query) {
     part: "snippet", type: "video", maxResults: 50, q: query,   // extra, since Shorts and live streams are filtered out
     relevanceLanguage: "en", regionCode: "IE", safeSearch: "none",
   });
-  const items = (found.items || []).filter(i => i.id?.videoId && i.snippet?.liveBroadcastContent === "none");
+  const items = (found.items || []).filter(i => i.id?.videoId);
   if (!items.length) return [];
-  const details = await api("videos", { part: "contentDetails", id: items.map(i => i.id.videoId).join(",") });
-  const secs = Object.fromEntries((details.items || []).map(d => [d.id, isoSeconds(d.contentDetails?.duration)]));
+  const details = await api("videos", { part: "contentDetails,liveStreamingDetails", id: items.map(i => i.id.videoId).join(",") });
+  const info = Object.fromEntries((details.items || []).map(d => [d.id, {
+    secs: isoSeconds(d.contentDetails?.duration),
+    starts: d.liveStreamingDetails?.scheduledStartTime || "",
+  }]));
   return items
-    .filter(i => (secs[i.id.videoId] || 0) >= SEARCH.MIN_SECONDS)
+    // Upcoming premieres and live streams have no length yet, so only the
+    // finished videos go through the Shorts filter.
+    .filter(i => i.snippet.liveBroadcastContent !== "none" || (info[i.id.videoId]?.secs || 0) >= SEARCH.MIN_SECONDS)
     .slice(0, SEARCH.RESULTS)
     .map(i => ({
       id: i.id.videoId,
       title: decodeEntities(i.snippet.title),
       channel: decodeEntities(i.snippet.channelTitle),
       published: i.snippet.publishedAt,
-      secs: secs[i.id.videoId],
+      secs: info[i.id.videoId]?.secs || 0,
+      upcoming: i.snippet.liveBroadcastContent === "upcoming" ? (info[i.id.videoId]?.starts || "soon") : "",
+      live: i.snippet.liveBroadcastContent === "live",
       thumbnail: i.snippet.thumbnails?.high?.url || `https://i.ytimg.com/vi/${i.id.videoId}/hqdefault.jpg`,
     }));
 }
