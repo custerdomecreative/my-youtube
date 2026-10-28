@@ -92,7 +92,8 @@ def image_for(entry) -> str:
 
 IMAGE = re.compile(r"!\[(.*?)\]\((\S+?)\)")
 HEADING_LINE = re.compile(r"^#{1,6}\s+(.*)$")
-LIST_MARKER = re.compile(r"^(?:[-*+]|\d+[.)])\s+")
+LIST_MARKER = re.compile(r"^(?:([-*+])|(\d+)[.)])\s+")
+RULE_LINE = re.compile(r"^(?:[-*_]\s*){3,}$")
 JUNK_IMAGE = re.compile(r"placeholder|pixel|spacer|1x1|logo|icon|\.svg|\.gif|^data:", re.I)
 # Page furniture that extraction sometimes keeps: timestamp labels, share
 # buttons, picture credits. Matched against a whole line.
@@ -103,26 +104,70 @@ JUNK_LINE = re.compile(
     r"|^\d+ (minutes?|mins?|hours?|hrs?|days?) ago$"
     r"|^\d{1,2} (jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]* \d{4}$",
     re.I)
+# Inline formatting. Escaped characters (\*, \_) are swapped for placeholders
+# first, so a literal "5 * 3" is never mistaken for italics.
+ESCAPED = re.compile(r"\\([\\`*_{}\[\]()#+\-.!>|~])")
+PLACEHOLDER = re.compile("[-]")
+INLINE = re.compile(r"`([^`]+)`|\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(\S(?:.*?\S)?)\*")
 
 
 def unescape(text: str) -> str:
-    return re.sub(r"\\([\\`*_{}\[\]()#+\-.!>])", r"\1", text)
+    return ESCAPED.sub(r"\1", text)
+
+
+def runs(line: str) -> list:
+    """Markdown inline text -> [[text, style], ...]; style is "", "b", "i", "bi" or "c"."""
+    protected = ESCAPED.sub(lambda m: chr(0xE000 + ord(m.group(1))), line)
+    restore = lambda t: PLACEHOLDER.sub(lambda m: chr(ord(m.group()) - 0xE000), t)
+    out, pos = [], 0
+    for m in INLINE.finditer(protected):
+        if m.start() > pos:
+            out.append([restore(protected[pos:m.start()]), ""])
+        code, both, bold, italic = m.groups()
+        text, style = (code, "c") if code is not None else (both, "bi") if both is not None else (bold, "b") if bold is not None else (italic, "i")
+        out.append([restore(text), style])
+        pos = m.end()
+    if pos < len(protected):
+        out.append([restore(protected[pos:]), ""])
+    return [r for r in out if r[0]]
+
+
+def plain(rs: list) -> str:
+    return "".join(t for t, _ in rs)
+
+
+def paragraph(rs: list):
+    """A plain paragraph stays a string; formatted ones keep their runs."""
+    return plain(rs) if all(style == "" for _, style in rs) else {"p": rs}
+
+
+def block_text(b) -> str:
+    if isinstance(b, str):
+        return b
+    if "p" in b:
+        return plain(b["p"])
+    if "li" in b:
+        return plain(b["li"])
+    return ""
 
 
 def to_blocks(markdown: str) -> list:
-    """Article markdown -> list of blocks: a string is a paragraph,
-    {"img": url, "alt": text} an image, {"h": text} a subheading."""
+    """Article markdown -> list of blocks:
+    "text" or {"p": runs}       a paragraph
+    {"li": runs, "n": 3}        a list item (n only for numbered lists)
+    {"h": text}                 a subheading
+    {"img": url, "alt": text}   an image"""
     blocks, seen = [], set()
     for raw in markdown.split("\n"):
         line = raw.strip()
-        if not line:
+        if not line or RULE_LINE.match(line):
             continue
         heading = HEADING_LINE.match(line)
         if heading:
             if blocks:  # a heading before any text is just the headline again
-                blocks.append({"h": unescape(heading.group(1).strip())})
+                blocks.append({"h": plain(runs(heading.group(1).strip()))})
             continue
-        is_item = bool(LIST_MARKER.match(line))
+        marker = LIST_MARKER.match(line)
         line = LIST_MARKER.sub("", line)
         # A line that is only images (photo galleries come through as lists).
         images = IMAGE.findall(line)
@@ -132,9 +177,25 @@ def to_blocks(markdown: str) -> list:
                     seen.add(src)
                     blocks.append({"img": src, "alt": unescape(alt.strip())})
             continue
-        line = unescape(IMAGE.sub("", line)).strip()
-        if line and not JUNK_LINE.search(line):
-            blocks.append(f"• {line}" if is_item else line)
+        rs = runs(IMAGE.sub("", line).strip())
+        text = plain(rs).strip()
+        if not text or JUNK_LINE.search(text):
+            continue
+        if marker:
+            item = {"li": rs}
+            if marker.group(2):
+                item["n"] = int(marker.group(2))
+            blocks.append(item)
+            continue
+        # A line break inside a paragraph comes through as a new paragraph:
+        # rejoin when the previous one stops mid-sentence and this starts lowercase.
+        prev = blocks[-1] if blocks else None
+        if prev is not None and (isinstance(prev, str) or "p" in prev) and text[:1].islower() \
+                and not re.search(r"[.!?:;\"'”’)\]]$", block_text(prev).rstrip()):
+            prev_runs = [[prev, ""]] if isinstance(prev, str) else prev["p"]
+            blocks[-1] = paragraph(prev_runs + [[" ", ""]] + rs)
+            continue
+        blocks.append(paragraph(rs))
     return blocks
 
 
@@ -163,7 +224,7 @@ def article_text(url: str, story_id: str, budget: list) -> list | None:
     if not markdown:
         return None
     blocks = to_blocks(markdown)
-    prose = [b for b in blocks if isinstance(b, str)]
+    prose = [block_text(b) for b in blocks if block_text(b)]
     return blocks if len(prose) >= 3 and sum(len(x) for x in prose) >= 400 else None
 
 

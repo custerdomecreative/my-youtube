@@ -33,6 +33,9 @@
     font-size: 17px; line-height: 1.6;
   }
   .reader p { margin: 0 0 1em; }
+  .reader ul, .reader ol { margin: 0 0 1em; padding-left: 1.3em; }
+  .reader li { margin: 0 0 0.4em; }
+  .reader code { font-family: ui-monospace, Menlo, monospace; font-size: 0.9em; background: var(--line); padding: 1px 5px; border-radius: 4px; }
   .reader figure { margin: 0 0 1em; }
   .reader img { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--line); }
   .reader figcaption { color: var(--muted); font-size: 13px; line-height: 1.4; margin-top: 6px; }
@@ -181,13 +184,36 @@
     img.addEventListener("error", () => fig.remove());
     return fig;
   }
-  function readerBlocks(s) {
-    const blocks = s.text.map(b => {
-      if (typeof b === "string") return el("p", { textContent: b });
-      if (b.img) return figure(b.img, b.alt);
-      if (b.h) return el("h3", { textContent: b.h });
-      return document.createTextNode("");
+  // Formatted text arrives as [[text, style], ...]; style is "", "b", "i", "bi" or "c".
+  function inline(runs) {
+    return runs.map(([text, style]) => {
+      if (style === "b") return el("strong", { textContent: text });
+      if (style === "i") return el("em", { textContent: text });
+      if (style === "bi") return el("strong", {}, [el("em", { textContent: text })]);
+      if (style === "c") return el("code", { textContent: text });
+      return document.createTextNode(text);
     });
+  }
+  function readerBlocks(s) {
+    const blocks = [];
+    let list = null;   // consecutive list items share one <ul>/<ol>
+    for (const b of s.text) {
+      if (b && b.li) {
+        const tag = b.n ? "ol" : "ul";
+        if (!list || list.tagName.toLowerCase() !== tag) {
+          list = el(tag);
+          if (b.n && b.n !== 1) list.start = b.n;
+          blocks.push(list);
+        }
+        list.append(el("li", {}, inline(b.li)));
+        continue;
+      }
+      list = null;
+      if (typeof b === "string") blocks.push(el("p", { textContent: b }));
+      else if (b.p) blocks.push(el("p", {}, inline(b.p)));
+      else if (b.img) blocks.push(figure(b.img, b.alt));
+      else if (b.h) blocks.push(el("h3", { textContent: b.h }));
+    }
     // No photos in the article text: lead with the story's own picture.
     // BBC feed thumbnails are small, so ask for a larger size of the same image.
     if (!s.text.some(b => b && b.img) && s.image) {
