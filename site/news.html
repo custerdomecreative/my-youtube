@@ -323,6 +323,20 @@
     render();
   }
 
+  function refreshFromStorage() {
+    if (document.getElementById("app").hidden) return;   // still locked or loading
+    read = new Set(load(KEYS.read, []));
+    later = load(KEYS.later, []);
+    if (document.querySelector(".reader")) return counts();   // don't close an open article
+    buildSourceMenu();
+    render();
+  }
+  let refreshTimer;
+  const refreshSoon = () => { clearTimeout(refreshTimer); refreshTimer = setTimeout(refreshFromStorage, 150); };
+  window.addEventListener("pageshow", e => { if (e.persisted) refreshSoon(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshSoon(); });
+  window.addEventListener("storage", e => { if (["news-read-v1", "news-later-v1"].includes(e.key)) refreshSoon(); });
+
   (async () => {
     try {
       const status = await fetch(`status.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json()).catch(() => null);

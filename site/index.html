@@ -193,6 +193,24 @@
     render();
   });
 
+  // Coming back to this page (Back button, another tab, or the other device
+  // syncing) can show a copy from memory: re-read what's saved and redraw.
+  // If a video is playing, only update the counts so playback isn't interrupted.
+  let loaded = false;   // set once the video list has arrived
+  function refreshFromStorage() {
+    if (!loaded) return;
+    watched = new Set(load(KEYS.watched, []));
+    later = load(KEYS.later, []);
+    if (document.querySelector(".player iframe, .pseudo-fs")) return counts();
+    buildChannelMenu();
+    render();
+  }
+  let refreshTimer;
+  const refreshSoon = () => { clearTimeout(refreshTimer); refreshTimer = setTimeout(refreshFromStorage, 150); };
+  window.addEventListener("pageshow", e => { if (e.persisted) refreshSoon(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshSoon(); });
+  window.addEventListener("storage", e => { if (["watched-v1", "later-v1", "progress-v1", "favourites-v1"].includes(e.key)) refreshSoon(); });
+
   fetch(`videos.json?t=${Date.now()}`, { cache: "no-store" })
     .then(r => r.json())
     .then(data => {
@@ -207,6 +225,7 @@
       if (watched.size > 5000) { watched = new Set([...watched].slice(-5000)); saveState(); }
       buildChannelMenu();
       render();
+      loaded = true;
     })
     .catch(() => {
       document.getElementById("list").replaceChildren(el("div", { className: "empty" }, [
