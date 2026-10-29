@@ -60,27 +60,63 @@ function toVideo(id, snippet, d) {
 }
 const DETAIL_PARTS = "contentDetails,liveStreamingDetails,statistics";
 
-async function runSearch(query) {
+// --- Re-ranking ---
+// YouTube's public search API ranks loosely, so results are re-scored here:
+// title matches count most, then your own channels, popularity, recency,
+// and YouTube's own order as one signal among several.
+const STOPWORDS = new Set("a an and the of for to in on at is it by with from vs".split(" "));
+const fold = t => (t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const queryWords = q => [...new Set(fold(q).split(/[^a-z0-9]+/).filter(w => w.length > 1 && !STOPWORDS.has(w)))];
+function matchShare(text, words) {
+  if (!words.length) return 0;
+  const tokens = new Set(fold(text).split(/[^a-z0-9]+/));
+  const hay = fold(text);
+  // Whole-word match, or a prefix for longer words ("review" ~ "reviews").
+  return words.filter(w => tokens.has(w) || (w.length > 3 && hay.includes(w))).length / words.length;
+}
+function rank(list, query, myChannels) {
+  const words = queryWords(query), mine = new Set((myChannels || []).map(fold));
+  const n = list.length || 1;
+  const scored = list.map((v, i) => {
+    const title = matchShare(v.title, words), channel = matchShare(v.channel, words);
+    const ageDays = v.published ? (Date.now() - new Date(v.published)) / 86400000 : 9999;
+    const score = 4 * title + 1 * channel
+      + (mine.has(fold(v.channel)) ? 1.5 : 0)
+      + 0.35 * Math.log10((v.views || 0) + 10)
+      + (ageDays < 30 ? 0.5 : ageDays < 365 ? 0.2 : 0)
+      + 1.5 * (1 - i / n);
+    return { ...v, score, match: Math.max(title, channel) };
+  });
+  // Upcoming premieres are only pinned if they genuinely match the search.
+  const kept = scored.filter(v => !(v.upcoming && v.match < 0.5));
+  // Drop results that match none of the words, if there are enough that do.
+  const matching = kept.filter(v => v.match > 0);
+  const pool = matching.length >= 5 ? matching : kept;
+  return pool.sort((a, b) => b.score - a.score);
+}
+
+async function runSearch(query, myChannels) {
   // YouTube's search often leaves scheduled premieres out of ordinary results,
-  // so ask for upcoming matches separately and put them first.
+  // so ask for upcoming matches separately.
   const [found, upcoming] = await Promise.all([
     searchApi("search", { part: "snippet", type: "video", maxResults: 45, q: query, relevanceLanguage: "en", regionCode: "IE", safeSearch: "none" }),
     searchApi("search", { part: "snippet", type: "video", eventType: "upcoming", maxResults: 5, q: query }).catch(() => ({ items: [] })),
   ]);
   const seen = new Set(), items = [];
-  for (const i of [...(upcoming.items || []), ...(found.items || [])]) {
+  for (const i of [...(found.items || []), ...(upcoming.items || [])]) {
     const id = i.id?.videoId;
     if (id && !seen.has(id)) { seen.add(id); items.push(i); }
   }
   if (!items.length) return [];
-  const details = await searchApi("videos", { part: DETAIL_PARTS, id: items.slice(0, 50).map(i => i.id.videoId).join(",") });
+  const batch = items.slice(0, 50);
+  const details = await searchApi("videos", { part: DETAIL_PARTS, id: batch.map(i => i.id.videoId).join(",") });
   const byId = Object.fromEntries((details.items || []).map(d => [d.id, d]));
-  return items.slice(0, 50)
+  const list = batch
     .map(i => toVideo(i.id.videoId, i.snippet, byId[i.id.videoId]))
     // Upcoming premieres and live streams have no length yet, so only the
     // finished videos go through the Shorts filter.
-    .filter(v => v.upcoming || v.live || v.secs >= SEARCH.MIN_SECONDS)
-    .slice(0, SEARCH.RESULTS);
+    .filter(v => v.upcoming || v.live || v.secs >= SEARCH.MIN_SECONDS);
+  return rank(list, query, myChannels).slice(0, SEARCH.RESULTS);
 }
 
 // A pasted YouTube link: look up just that video (doesn't use a search).
@@ -103,7 +139,7 @@ function sortResults(list, how) {
 }
 
 // The search box plus results. `makeCard(video, metaLine)` draws a result.
-function searchPanel(makeCard, metaFor) {
+function searchPanel(makeCard, metaFor, myChannels) {
   const input = el("input", { type: "search", placeholder: "Look up a video, or paste a YouTube link", ariaLabel: "Look up a video", enterKeyHint: "search", autocomplete: "off" });
   const go = el("button", { className: "tick", type: "submit", textContent: "Search" });
   const note = el("div", { className: "search-note" });
@@ -150,7 +186,7 @@ function searchPanel(makeCard, metaFor) {
     paintNote(linkId ? "Looking up that video…" : "Searching…");
     go.disabled = true;
     try {
-      const list = linkId ? await lookUpVideo(linkId) : await runSearch(query);
+      const list = linkId ? await lookUpVideo(linkId) : await runSearch(query, myChannels ? myChannels() : []);
       if (!linkId) countSearch();
       const label = linkId ? (list.length ? "Linked video" : "Couldn't find that video") : (list.length ? `Results for “${query}”` : `Nothing found for “${query}”`);
       remember(list, label);

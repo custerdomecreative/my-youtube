@@ -136,7 +136,7 @@
   function showIndex() {
     document.title = "Channels";
     const main = document.getElementById("main");
-    const search = searchPanel(card, searchMeta);
+    const search = searchPanel(card, searchMeta, () => (index?.channels || []).map(ch => ch.name));
     if (!index.configured) {
       main.replaceChildren(search, el("div", { className: "empty" }, [
         el("strong", { textContent: "Not set up yet." }),
