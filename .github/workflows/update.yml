@@ -15,8 +15,10 @@ permissions:
   id-token: write
 
 concurrency:
+  # Let a running update finish; extra requests wait (and duplicates collapse
+  # into one queued run) instead of cancelling it.
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:

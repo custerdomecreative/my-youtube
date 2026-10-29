@@ -13,7 +13,7 @@
   const WORKFLOW = "update.yml";
   const COOLDOWN_MINUTES = 120;         // per device; change or set to 0
   const STALE_MINUTES = 120;            // auto-update when data is older than this
-  const KEYS = { token: "gh-token-v1", last: "update-last-v1", running: "update-running-v1" };
+  const KEYS = { token: "gh-token-v1", last: "update-last-v1", running: "update-running-v1", lock: "update-lock-v1" };
   const get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const set = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -59,7 +59,9 @@
     }
   }
 
-  // Wait for any update run created after `since` (ours or another device's).
+  // Wait for the update: any run created after `since` (ours, another tab's
+  // or another device's). Duplicate requests get cancelled by GitHub, so a
+  // cancelled run isn't a failure as long as another one succeeds.
   async function poll(since) {
     if (polling) return;
     polling = true;
@@ -69,13 +71,18 @@
       while (Date.now() < deadline) {
         await sleep(10000);
         try {
-          const res = await api(`/actions/workflows/${WORKFLOW}/runs?per_page=1`);
+          const res = await api(`/actions/workflows/${WORKFLOW}/runs?per_page=10`);
           if (!res.ok) continue;
-          const run = (await res.json()).workflow_runs?.[0];
-          if (!run || new Date(run.created_at).getTime() < since - 60000) continue;  // not started yet
-          if (run.status !== "completed") continue;
+          const runs = ((await res.json()).workflow_runs || []).filter(r => new Date(r.created_at).getTime() >= since - 60000);
+          if (!runs.length) continue;                                                        // not started yet
+          if (runs.some(r => r.status === "completed" && r.conclusion === "success")) {
+            set(KEYS.running, null);
+            await waitForFreshData(since);
+            location.reload();
+            return;
+          }
+          if (runs.some(r => r.status !== "completed")) continue;                            // still going
           set(KEYS.running, null);
-          if (run.conclusion === "success") { await waitForFreshData(since); location.reload(); return; }
           paint("Update failed — try later");
           setTimeout(() => paint(), 15000);
           return;
@@ -86,6 +93,23 @@
     } finally {
       polling = false;
     }
+  }
+
+  // Only one tab starts an update: claim it, wait a moment, check we still hold it.
+  const me = Math.random().toString(36).slice(2);
+  async function claimUpdate() {
+    const held = () => { try { return JSON.parse(get(KEYS.lock) || "null"); } catch (e) { return null; } };
+    const current = held();
+    if (current && current.o !== me && Date.now() - current.t < 30000) return false;
+    set(KEYS.lock, JSON.stringify({ o: me, t: Date.now() }));
+    await sleep(300 + Math.random() * 300);
+    return held()?.o === me;
+  }
+  // Another tab started or is waiting on an update: wait with it.
+  function joinRunning() {
+    const running = Number(get(KEYS.running) || 0);
+    if (running && Date.now() - running < 12 * 60000) { poll(running); return true; }
+    return false;
   }
 
   // Start an update run. `auto` runs stay silent on problems.
@@ -126,8 +150,11 @@
     if (checking || polling || !get(KEYS.token) || minutesLeft() > 0) return;
     checking = true;
     try {
+      if (joinRunning()) return;
       const age = Date.now() - await dataUpdatedAt();
       if (age < STALE_MINUTES * 60000) return;
+      if (!(await claimUpdate())) return;                 // another tab is handling it
+      if (joinRunning() || minutesLeft() > 0) return;     // it may have just started one
       // Another device may already be updating: join that run instead.
       const res = await api(`/actions/workflows/${WORKFLOW}/runs?per_page=1`);
       if (res.ok) {
@@ -164,5 +191,7 @@
   if (running && Date.now() - running < 12 * 60000) poll(running);
   else { set(KEYS.running, null); paint(); autoUpdate(); }
   document.addEventListener("visibilitychange", () => { if (!document.hidden) autoUpdate(); });
+  // An update started in another tab: show it here too, and reload when it lands.
+  window.addEventListener("storage", e => { if (e.key === KEYS.running && e.newValue) joinRunning(); });
   setInterval(() => { if (!polling) paint(); }, 60000);
 })();
