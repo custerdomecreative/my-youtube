@@ -140,14 +140,18 @@ function makePlayer(v) {
     if (pct) thumb.push(el("span", { className: "progress-bar" }, [el("span", { style: `width:${pct}%` })]));
   }
   const playBtn = el("button", { ariaLabel: saved ? `Resume ${v.title}` : `Play ${v.title}` }, thumb);
-  playBtn.addEventListener("click", () => {
+  // Load the YouTube player into the card. With autoplay it starts at once;
+  // if the phone blocks that (iPhone Low Power Mode does), the player can sit
+  // on a dark still frame with no play button. So check it really started,
+  // and if not, reload it without autoplay so YouTube's own play button shows.
+  function mount(autoplay) {
     // rel=0 limits end-screen suggestions to the same channel.
     // youtube.com (not youtube-nocookie.com) so a signed-in Premium
     // session can apply where the browser shares YouTube's cookies.
     // fs=0 hides YouTube's own fullscreen button; ours makes the whole
     // player box fullscreen so the shields come along.
     // enablejsapi lets the page read the position, for resuming later.
-    const params = new URLSearchParams({ autoplay: 1, rel: 0, playsinline: 1, modestbranding: 1, fs: 0, enablejsapi: 1, origin: location.origin });
+    const params = new URLSearchParams({ autoplay: autoplay ? 1 : 0, rel: 0, playsinline: 1, modestbranding: 1, fs: 0, enablejsapi: 1, origin: location.origin });
     if (resumeAt) params.set("start", resumeAt);
     const fsBtn = el("button", { className: "fs", ariaLabel: "Fullscreen", textContent: "⤢" });
     fsBtn.addEventListener("click", () => toggleFullscreen(player, fsBtn));
@@ -160,6 +164,20 @@ function makePlayer(v) {
     loadYouTubeApi().then(YT => {
       const yt = new YT.Player(iframe, {
         events: {
+          onReady: () => {
+            if (!autoplay) return;
+            setTimeout(() => {
+              if (!iframe.isConnected) return;
+              let state, at;
+              try { state = yt.getPlayerState(); at = yt.getCurrentTime(); } catch (e) { return; }
+              // -1 unstarted, 5 cued, or "paused" without having moved: autoplay was blocked.
+              const blocked = state === -1 || state === 5 || (state === 2 && Math.abs((at || 0) - (resumeAt || 0)) < 1);
+              if (!blocked) return;
+              activePlayers.delete(yt);
+              try { yt.destroy(); } catch (e) {}
+              mount(false);
+            }, 4000);
+          },
           onStateChange: e => {
             if (e.data === 2) saveProgress(v, yt.getCurrentTime(), yt.getDuration());   // paused
             if (e.data === 0) saveProgress(v, 0, 0);                                       // finished
@@ -169,7 +187,8 @@ function makePlayer(v) {
       yt.video = v;
       activePlayers.add(yt);
     }).catch(() => { /* still plays; just no resume */ });
-  });
+  }
+  playBtn.addEventListener("click", () => mount(true));
   player.append(playBtn);
   return player;
 }
