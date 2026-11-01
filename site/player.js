@@ -128,6 +128,24 @@ setInterval(() => activePlayers.forEach(p => {
   try { if (p.getPlayerState() === 1) saveProgress(p.video, p.getCurrentTime(), p.getDuration()); } catch (e) {}
 }), 5000);
 
+// Debug readout (add ?debug to the address): shows what the YouTube player
+// reports, second by second, so a stuck video can be diagnosed from a screenshot.
+const STATE_NAMES = { "-1": "unstarted", 0: "ended", 1: "playing", 2: "paused", 3: "buffering", 5: "cued" };
+function watchPlayer(yt, iframe, autoplay) {
+  const t0 = Date.now(), seen = [];
+  const box = el("div", { className: "player-debug" });
+  iframe.parentElement.append(box);
+  const tick = () => {
+    if (!iframe.isConnected) return box.remove();
+    let state = "?", at = "?", loaded = "?";
+    try { state = STATE_NAMES[yt.getPlayerState()] ?? yt.getPlayerState(); at = yt.getCurrentTime().toFixed(1); loaded = Math.round(yt.getVideoLoadedFraction() * 100) + "%"; } catch (e) {}
+    if (seen[seen.length - 1] !== state) seen.push(state);
+    box.textContent = `${((Date.now() - t0) / 1000).toFixed(0)}s · ${autoplay ? "autoplay" : "manual"} · ${state} · t=${at} · loaded ${loaded} · ${seen.join("→")} · ${document.hidden ? "hidden" : "visible"}`;
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
 // A thumbnail that becomes the embedded player when tapped.
 function makePlayer(v) {
   const player = el("div", { className: "player" });
@@ -186,6 +204,7 @@ function makePlayer(v) {
       });
       yt.video = v;
       activePlayers.add(yt);
+      if (document.body.classList.contains("debug")) watchPlayer(yt, iframe, autoplay);
     }).catch(() => { /* still plays; just no resume */ });
   }
   playBtn.addEventListener("click", () => mount(true));
