@@ -178,3 +178,10 @@ html.blocked body > *:not(.blocked-screen) { display: none !important; }
   border: 1px solid var(--line); background: var(--surface); color: var(--ink);
 }
 .search-results > .list { margin-top: 12px; }
+/* iPhone (WebKit) sometimes leaves video black inside a rounded, clipped card
+   while audio and captions play. Giving the player and iframe their own
+   compositing layers makes it paint reliably. (Transforms go on the player
+   and iframe themselves, never on the card, so the iPhone full-screen mode,
+   which uses position: fixed, still covers the whole screen.) */
+.player { isolation: isolate; -webkit-transform: translateZ(0); transform: translateZ(0); }
+.player iframe { -webkit-transform: translateZ(0); transform: translateZ(0); -webkit-backface-visibility: hidden; backface-visibility: hidden; }
