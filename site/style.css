@@ -88,6 +88,22 @@ h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0; }
 .player:fullscreen .fs { top: 22px; right: 262px; }
 .player.pseudo-fs .shield-title, .player.pseudo-fs .fs { margin-top: env(safe-area-inset-top); }
 .player.pseudo-fs .shield-logo { margin-bottom: env(safe-area-inset-bottom); margin-right: env(safe-area-inset-right); }
+/* iPhone can't lock to landscape, so when fullscreen opens with the phone
+   upright, turn the player sideways ourselves: a landscape box rotated 90°
+   to fill the portrait screen. Turn the phone left to watch. If the phone
+   itself rotates (rotation lock off), this no longer applies. The notch
+   ends up on the left of the video and the home bar on the right. */
+@media (orientation: portrait) {
+  .player.pseudo-fs {
+    inset: auto; top: 0; left: 100vw; left: 100dvw;
+    width: 100vh; width: 100dvh; height: 100vw; height: 100dvw;
+    transform-origin: top left; transform: rotate(90deg);
+    padding: 0 env(safe-area-inset-bottom) 0 env(safe-area-inset-top);
+  }
+  .player.pseudo-fs .shield-title { margin-top: 0; right: calc(172px + env(safe-area-inset-bottom)); }
+  .player.pseudo-fs .fs { margin-top: 0; right: calc(180px + env(safe-area-inset-bottom)); }
+  .player.pseudo-fs .shield-logo { margin-bottom: 0; margin-right: env(safe-area-inset-bottom); }
+}
 /* Add ?debug to the page address to see where the shields sit. */
 body.debug .shield { background: rgba(255, 0, 0, 0.35); }
 body.no-scroll { overflow: hidden; }

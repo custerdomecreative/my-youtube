@@ -37,12 +37,15 @@ function toggleFullscreen(player, btn) {
   if (!request) return pseudo();  // iPhone: no fullscreen API for page elements
   try {
     const result = request.call(player);
-    if (result && result.catch) result.catch(pseudo);
+    // Android lets a fullscreen page lock to landscape; desktops just decline.
+    const lock = () => { try { screen.orientation.lock("landscape").catch(() => {}); } catch (e) {} };
+    if (result && result.then) result.then(lock, pseudo); else lock();
   } catch (e) { pseudo(); }
 }
 ["fullscreenchange", "webkitfullscreenchange"].forEach(evt => document.addEventListener(evt, () => {
   const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
   document.querySelectorAll(".player .fs").forEach(b => setFsIcon(b, b.parentElement === fsEl));
+  if (!fsEl) try { screen.orientation.unlock(); } catch (e) {}
 }));
 document.addEventListener("keydown", e => {
   const open = document.querySelector(".player.pseudo-fs");
