@@ -140,10 +140,38 @@ function watchPlayer(yt, iframe, autoplay) {
     let state = "?", at = "?", loaded = "?";
     try { state = STATE_NAMES[yt.getPlayerState()] ?? yt.getPlayerState(); at = yt.getCurrentTime().toFixed(1); loaded = Math.round(yt.getVideoLoadedFraction() * 100) + "%"; } catch (e) {}
     if (seen[seen.length - 1] !== state) seen.push(state);
-    box.textContent = `${((Date.now() - t0) / 1000).toFixed(0)}s · ${autoplay ? "autoplay" : "manual"} · ${state} · t=${at} · loaded ${loaded} · ${seen.join("→")} · ${document.hidden ? "hidden" : "visible"}`;
+    box.textContent = `${((Date.now() - t0) / 1000).toFixed(0)}s · ${autoplay ? "autoplay" : "manual"} · ${state} · t=${at} · loaded ${loaded} · ${seen.join("→")} · fixes: ${(yt.fixes || []).join(",") || "none"} · ${document.hidden ? "hidden" : "visible"}`;
   };
   tick();
   setInterval(tick, 1000);
+}
+
+// Sometimes YouTube's player accepts "play" but never fetches the video: it
+// sits "unstarted" with nothing loaded, showing a black frame (and captions)
+// until it's prodded. Watch for that and prod it, gently first: re-seek and
+// play, then a playback-speed wiggle (what press-and-hold does), then reload
+// the video at the same spot. Each attempt is listed in the ?debug readout.
+function unstick(yt, iframe, v, resumeAt) {
+  yt.fixes = [];
+  let stuckFor = 0, tries = 0;
+  const timer = setInterval(() => {
+    if (!iframe.isConnected) return clearInterval(timer);
+    let state, loaded, at;
+    try { state = yt.getPlayerState(); loaded = yt.getVideoLoadedFraction(); at = yt.getCurrentTime(); } catch (e) { return; }
+    // "Unstarted" or "buffering" with nothing loaded. Cued (waiting for a tap),
+    // paused and playing are all fine; a hidden page isn't judged.
+    const stuck = (state === -1 || state === 3) && !loaded && !document.hidden;
+    if (!stuck) { stuckFor = 0; return; }
+    if (++stuckFor < 4 || tries >= 3) return;
+    stuckFor = 0;
+    const from = Math.max(at || 0, resumeAt || 0);
+    try {
+      if (tries === 0) { yt.seekTo(from, true); yt.playVideo(); }
+      else if (tries === 1) { yt.setPlaybackRate(2); setTimeout(() => { try { yt.setPlaybackRate(1); yt.playVideo(); } catch (e) {} }, 600); }
+      else { yt.loadVideoById({ videoId: v.id, startSeconds: from }); }
+    } catch (e) {}
+    yt.fixes.push(["seek", "speed", "reload"][tries++]);
+  }, 1000);
 }
 
 // A thumbnail that becomes the embedded player when tapped.
@@ -158,10 +186,7 @@ function makePlayer(v) {
     if (pct) thumb.push(el("span", { className: "progress-bar" }, [el("span", { style: `width:${pct}%` })]));
   }
   const playBtn = el("button", { ariaLabel: saved ? `Resume ${v.title}` : `Play ${v.title}` }, thumb);
-  // Load the YouTube player into the card. With autoplay it starts at once;
-  // if the phone blocks that (iPhone Low Power Mode does), the player can sit
-  // on a dark still frame with no play button. So check it really started,
-  // and if not, reload it without autoplay so YouTube's own play button shows.
+  // Load the YouTube player into the card and start it.
   function mount(autoplay) {
     // rel=0 limits end-screen suggestions to the same channel.
     // youtube.com (not youtube-nocookie.com) so a signed-in Premium
@@ -182,20 +207,7 @@ function makePlayer(v) {
     loadYouTubeApi().then(YT => {
       const yt = new YT.Player(iframe, {
         events: {
-          onReady: () => {
-            if (!autoplay) return;
-            setTimeout(() => {
-              if (!iframe.isConnected) return;
-              let state, at;
-              try { state = yt.getPlayerState(); at = yt.getCurrentTime(); } catch (e) { return; }
-              // -1 unstarted, 5 cued, or "paused" without having moved: autoplay was blocked.
-              const blocked = state === -1 || state === 5 || (state === 2 && Math.abs((at || 0) - (resumeAt || 0)) < 1);
-              if (!blocked) return;
-              activePlayers.delete(yt);
-              try { yt.destroy(); } catch (e) {}
-              mount(false);
-            }, 4000);
-          },
+          onReady: () => unstick(yt, iframe, v, resumeAt),
           onStateChange: e => {
             if (e.data === 2) saveProgress(v, yt.getCurrentTime(), yt.getDuration());   // paused
             if (e.data === 0) saveProgress(v, 0, 0);                                       // finished
