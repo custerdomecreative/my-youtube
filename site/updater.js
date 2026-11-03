@@ -11,8 +11,8 @@
 (() => {
   const REPO = "custerdomecreative/my-youtube";
   const WORKFLOW = "update.yml";
-  const COOLDOWN_MINUTES = 120;         // per device; change or set to 0
-  const STALE_MINUTES = 120;            // auto-update when data is older than this
+  const COOLDOWN_MINUTES = 30;          // per device; change or set to 0
+  const STALE_MINUTES = 30;             // auto-update when data is older than this
   const KEYS = { token: "gh-token-v1", last: "update-last-v1", running: "update-running-v1", lock: "update-lock-v1" };
   const get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const set = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };

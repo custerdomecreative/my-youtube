@@ -2,9 +2,9 @@ name: Update watch list
 
 on:
   schedule:
-    # Every 2 hours from 06:17 to 22:17 UTC: about 7am-11pm Irish summer
-    # time (6am-10pm in winter). No overnight runs.
-    - cron: "17 6-22/2 * * *"
+    # Every 30 minutes from 06:17 to 22:47 UTC: about 6am-11pm Irish winter
+    # time (7am-midnight in summer). No overnight runs.
+    - cron: "17,47 6-22 * * *"
   workflow_dispatch:   # lets you run it by hand from the Actions tab
   push:
     branches: [main]
