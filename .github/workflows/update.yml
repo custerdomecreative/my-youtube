@@ -45,6 +45,8 @@ jobs:
           pip install --quiet requests
           python scripts/fetch_catalog.py
       - name: Fetch news
+        # Only refreshed about every 2 hours (see NEWS_EVERY_MINUTES in the
+        # script); other runs republish the current news unchanged.
         # A news failure shouldn't stop the video page updating.
         continue-on-error: true
         env:

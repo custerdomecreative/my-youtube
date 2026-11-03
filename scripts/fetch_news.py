@@ -36,7 +36,13 @@ FEEDS_FILE = ROOT / "feeds.json"
 SITE = ROOT / "site"
 CACHE = ROOT / ".cache" / "articles"
 
-MAX_PER_SOURCE = 25        # newest stories kept per source
+PUBLISHED = "https://custerdomecreative.github.io/my-youtube/"
+# The update job runs every 30 minutes for videos; news is only refreshed
+# when the published copy is at least this old (a little under 2 hours, so
+# the half-hourly runs land on a refresh about every 2 hours).
+NEWS_EVERY_MINUTES = 110
+
+MAX_PER_SOURCE = 25       # newest stories kept per source
 MAX_AGE_HOURS = 48         # older stories drop off the page
 MAX_NEW_FETCHES = 150      # article downloads per run, all sources
 FETCH_DELAY = 1.0          # seconds between article downloads
@@ -272,6 +278,28 @@ def encrypt(payload: dict, password: str) -> dict:
     return {"v": 1, "iterations": KDF_ITERATIONS, "salt": b64(KDF_SALT), "iv": b64(iv), "data": b64(data)}
 
 
+def keep_published(now: datetime) -> bool:
+    """Videos update every 30 minutes but news only about every 2 hours, by
+    choice: if the published news is newer than that, publish it again
+    unchanged. Returns False (so news is fetched) if it can't be loaded."""
+    try:
+        stamp = f"?t={int(time.time())}"
+        status = SESSION.get(PUBLISHED + "status.json" + stamp, timeout=30).json()
+        age = now - datetime.fromisoformat(status["updated"])
+        if not status.get("configured") or age >= timedelta(minutes=NEWS_EVERY_MINUTES):
+            return False
+        enc = SESSION.get(PUBLISHED + "news.enc.json" + stamp, timeout=30)
+        enc.raise_for_status()
+        json.loads(enc.text)
+        (SITE / "news.enc.json").write_text(enc.text)
+        (SITE / "status.json").write_text(json.dumps(status, indent=2))
+        print(f"News is {int(age.total_seconds() // 60)} min old; keeping it (refreshes about every 2 hours).")
+        return True
+    except Exception as exc:
+        print(f"Couldn't load the published news ({type(exc).__name__}); fetching it.")
+        return False
+
+
 def main() -> int:
     password = os.environ.get("NEWS_PASSWORD", "")
     now = datetime.now(timezone.utc)
@@ -280,6 +308,8 @@ def main() -> int:
         print("NEWS_PASSWORD secret not set; skipping news.")
         (SITE / "status.json").write_text(json.dumps(
             {"updated": now.isoformat(timespec="seconds"), "configured": False, "sources": []}, indent=2))
+        return 0
+    if keep_published(now):
         return 0
 
     CACHE.mkdir(parents=True, exist_ok=True)
