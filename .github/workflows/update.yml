@@ -29,6 +29,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Fetch latest videos
+        # The API key is only used as a backup when YouTube's feeds are down.
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: python scripts/fetch_feeds.py
       - name: Restore cached article text
         uses: actions/cache@v4

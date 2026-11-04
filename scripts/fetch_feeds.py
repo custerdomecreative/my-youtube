@@ -6,6 +6,7 @@ Each channel needs a "name" plus either an "id" (starts with UC) or a
 """
 
 import json
+import os
 import re
 import sys
 import time
@@ -99,18 +100,67 @@ def parse_feed(xml_text: str, channel_name: str) -> list[dict]:
     return videos
 
 
-def fetch_channel(channel: dict) -> list[dict]:
+def fetch_from_api(channel_id: str, channel_name: str) -> list[dict]:
+    """Backup when YouTube's RSS feeds are down: the same long-form uploads
+    playlist through the YouTube Data API (1 quota unit per channel)."""
+    key = os.environ.get("YOUTUBE_API_KEY", "")
+    if not key:
+        raise RuntimeError("feed failed and no YOUTUBE_API_KEY for the backup")
+    last_error = None
+    for prefix in ("UULF", "UU"):
+        url = ("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails"
+               f"&maxResults={MAX_PER_CHANNEL}&playlistId={prefix}{channel_id[2:]}&key={key}")
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": HEADERS["User-Agent"]})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                items = json.loads(resp.read()).get("items", [])
+            break
+        except urllib.error.HTTPError as exc:
+            # Never let the error (which can include the URL) print the key.
+            last_error = RuntimeError(f"API backup failed (HTTP {exc.code})")
+    else:
+        raise last_error
+    videos = []
+    for item in items:
+        snip, details = item.get("snippet", {}), item.get("contentDetails", {})
+        video_id = details.get("videoId") or snip.get("resourceId", {}).get("videoId")
+        title = snip.get("title", "")
+        if not video_id or title in ("Private video", "Deleted video"):
+            continue
+        thumbs = snip.get("thumbnails", {})
+        published = details.get("videoPublishedAt") or snip.get("publishedAt", "")
+        videos.append({
+            "id": video_id,
+            "title": title,
+            "channel": channel_name,
+            # Same format as the RSS feed, so sorting and age checks match.
+            "published": published.replace("Z", "+00:00"),
+            "thumbnail": (thumbs.get("high") or thumbs.get("medium") or {}).get("url")
+                         or f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+        })
+    return videos
+
+
+def fetch_channel(channel: dict) -> tuple[list[dict], bool]:
+    """Returns (videos, used_backup)."""
     name = channel["name"]
     channel_id = channel.get("id") or resolve_handle(channel["handle"])
     # "UULF" is the channel's long-form uploads playlist: no Shorts or live
-    # streams. Fall back to the full channel feed if it isn't available.
+    # streams. Fall back to the full channel feed if it isn't available,
+    # and to the YouTube Data API if the feeds are down altogether.
     try:
-        xml_text = get("https://www.youtube.com/feeds/videos.xml"
-                       f"?playlist_id=UULF{channel_id[2:]}")
-    except Exception:
-        xml_text = get("https://www.youtube.com/feeds/videos.xml"
-                       f"?channel_id={channel_id}")
-    return parse_feed(xml_text, name)[:MAX_PER_CHANNEL]
+        try:
+            xml_text = get("https://www.youtube.com/feeds/videos.xml"
+                           f"?playlist_id=UULF{channel_id[2:]}")
+        except Exception:
+            xml_text = get("https://www.youtube.com/feeds/videos.xml"
+                           f"?channel_id={channel_id}")
+        return parse_feed(xml_text, name)[:MAX_PER_CHANNEL], False
+    except Exception as feed_error:
+        try:
+            return fetch_from_api(channel_id, name)[:MAX_PER_CHANNEL], True
+        except Exception as api_error:
+            raise RuntimeError(f"{feed_error}; {api_error}") from None
 
 
 def main() -> int:
@@ -121,8 +171,8 @@ def main() -> int:
 
     for channel in channels:
         try:
-            found = fetch_channel(channel)
-            print(f"{channel['name']}: {len(found)} videos")
+            found, backup = fetch_channel(channel)
+            print(f"{channel['name']}: {len(found)} videos" + (" (feed down; used the API)" if backup else ""))
             videos.extend(found)
         except Exception as exc:  # one broken channel shouldn't sink the rest
             print(f"{channel['name']}: FAILED ({exc}); keeping its previous videos", file=sys.stderr)
