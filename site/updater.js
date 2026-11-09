@@ -37,11 +37,23 @@
   box.append(updated, btn);
 
   let polling = false;
+  // A video open (playing or paused) or an article being read: never reload
+  // under it. Offer the new data on the button instead.
+  const busy = () => document.querySelector(".player iframe, .reader, .pseudo-fs");
+  let offered = false;
+  function reloadOrOffer() {
+    if (!busy()) return location.reload();
+    offered = true;
+    btn.disabled = false;
+    btn.classList.add("attention");
+    btn.textContent = "↻ New videos ready, tap to show";
+  }
   const minutesLeft = () => {
     const last = Number(get(KEYS.last) || 0);
     return Math.ceil((last + COOLDOWN_MINUTES * 60000 - Date.now()) / 60000);
   };
   function paint(text) {
+    if (offered) return;   // keep the "tap to show" offer until it's used
     if (text) { btn.textContent = text; btn.disabled = true; return; }
     const left = minutesLeft();
     btn.disabled = left > 0;
@@ -78,8 +90,7 @@
           if (runs.some(r => r.status === "completed" && r.conclusion === "success")) {
             set(KEYS.running, null);
             await waitForFreshData(since);
-            location.reload();
-            return;
+            return reloadOrOffer();
           }
           if (runs.some(r => r.status !== "completed")) continue;                            // still going
           set(KEYS.running, null);
@@ -174,6 +185,7 @@
   }
 
   btn.addEventListener("click", async () => {
+    if (offered) return location.reload();
     if (!get(KEYS.token)) {
       const token = prompt(
         "Paste your GitHub update token. It's stored on this device only.\n\n" +
