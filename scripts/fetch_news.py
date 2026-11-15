@@ -242,6 +242,9 @@ def collect(source: dict, cutoff: datetime, budget: list) -> tuple[list, dict]:
     if not feed.entries:
         raise ValueError("feed had no stories")
     stories = []
+    dates = sorted((d for d in (published(e) for e in feed.entries) if d), reverse=True)
+    print(f"  {source['name']}: {len(feed.entries)} entries in feed, newest "
+          f"{dates[0].isoformat() if dates else 'n/a'}, oldest {dates[-1].isoformat() if dates else 'n/a'}")
     for entry in feed.entries:
         link = entry.get("link", "")
         when = published(entry)
