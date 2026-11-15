@@ -291,6 +291,11 @@ def keep_published(now: datetime) -> bool:
         age = now - datetime.fromisoformat(status["updated"])
         if not status.get("configured") or age >= timedelta(minutes=NEWS_EVERY_MINUTES):
             return False
+        # A source was added or removed since the last fetch: refresh now.
+        wanted = {f["name"] for f in json.loads(FEEDS_FILE.read_text())}
+        if wanted != {s["name"] for s in status.get("sources", [])}:
+            print("Feed list changed; refreshing news now.")
+            return False
         enc = SESSION.get(PUBLISHED + "news.enc.json" + stamp, timeout=30)
         enc.raise_for_status()
         json.loads(enc.text)
