@@ -1,0 +1,13 @@
+name: diag-vgc
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+          curl -sS -m 25 -A "$UA" -D /tmp/h.txt -o /tmp/f.xml https://www.videogameschronicle.com/feed/ || true
+          head -20 /tmp/h.txt
+          echo "--- size: $(wc -c < /tmp/f.xml)"
+          grep -oE "<lastBuildDate>[^<]*|<pubDate>[^<]*" /tmp/f.xml | head -12
+          echo "--- first 300 bytes"; head -c 300 /tmp/f.xml
