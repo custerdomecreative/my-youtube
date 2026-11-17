@@ -145,6 +145,17 @@ def main() -> int:
     channels = json.loads(CHANNELS_FILE.read_text())
     index, failures = [], 0
     for channel in channels:
+        if not channel.get("id"):
+            # Handle-only entries (e.g. "@claude"): look the channel id up via the API.
+            try:
+                items = api("channels", part="id", forHandle=channel["handle"]).get("items", [])
+                if not items:
+                    raise ApiError("handle not found")
+                channel = {**channel, "id": items[0]["id"]}
+            except ApiError as exc:
+                failures += 1
+                print(f"{channel['name']}: skipped, couldn't resolve {channel.get('handle')} ({exc})")
+                continue
         cache_file = CACHE / f"{channel['id']}.json"
         cache = json.loads(cache_file.read_text()) if cache_file.exists() else {}
         error = None
