@@ -11,8 +11,9 @@
   const TOKEN_KEY = "gh-token-v1";
   const META_KEY = "sync-meta-v1";
   // localStorage key -> kind. Sets hold ids; lists hold saved items.
-  const TRACKED = { "watched-v1": "watched", "news-read-v1": "read", "later-v1": "videoLater", "news-later-v1": "newsLater", "favourites-v1": "favourites" };
-  const SETS = ["watched", "read"], LISTS = ["videoLater", "newsLater", "favourites"];
+  const TRACKED = { "watched-v1": "watched", "news-read-v1": "read", "later-v1": "videoLater", "news-later-v1": "newsLater", "favourites-v1": "favourites",
+                    "ai-later-v1": "aiVideoLater", "ai-news-later-v1": "aiNewsLater" };
+  const SETS = ["watched", "read"], LISTS = ["videoLater", "newsLater", "favourites", "aiVideoLater", "aiNewsLater"];
   const KIND_KEY = Object.fromEntries(Object.entries(TRACKED).map(([k, v]) => [v, k]));
   const TOMBSTONE_DAYS = 30;
 

@@ -33,6 +33,13 @@ jobs:
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: python scripts/fetch_feeds.py
+      - name: Fetch latest AI videos
+        # The AI section's channels (ai-channels.json), on the same schedule.
+        # A failure here shouldn't stop the other pages updating.
+        continue-on-error: true
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: python scripts/fetch_feeds.py ai
       - name: Restore cached article text
         uses: actions/cache@v4
         with:
@@ -57,6 +64,14 @@ jobs:
         run: |
           pip install --quiet feedparser trafilatura cryptography requests
           python scripts/fetch_news.py
+      - name: Fetch AI news
+        # The AI section's feeds (ai-feeds.json), same 2-hour refresh as News.
+        continue-on-error: true
+        env:
+          NEWS_PASSWORD: ${{ secrets.NEWS_PASSWORD }}
+        run: |
+          pip install --quiet feedparser trafilatura cryptography requests
+          python scripts/fetch_news.py ai
       - name: Search key
         # Restricted to this site and YouTube searches, so it's meant to be public.
         env:

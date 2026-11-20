@@ -3,6 +3,10 @@
 Writes site/videos.json, which the web page reads. Standard library only.
 Each channel needs a "name" plus either an "id" (starts with UC) or a
 "handle" (like "@SpawnWave"), which is resolved to an id on each run.
+
+`python scripts/fetch_feeds.py ai` does the same for the AI section: it reads
+ai-channels.json, writes site/ai-videos.json and tags each video with
+"section": "ai" so the pages can keep the sections' lists apart.
 """
 
 import json
@@ -17,8 +21,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CHANNELS_FILE = ROOT / "channels.json"
-OUTPUT_FILE = ROOT / "site" / "videos.json"
+# Optional section name ("ai"): its files are the usual names with "ai-" in front.
+SECTION = sys.argv[1] if len(sys.argv) > 1 else ""
+if SECTION and not re.fullmatch(r"[a-z]+", SECTION):
+    sys.exit(f"Bad section name: {SECTION!r}")
+PREFIX = f"{SECTION}-" if SECTION else ""
+CHANNELS_FILE = ROOT / f"{PREFIX}channels.json"
+OUTPUT_FILE = ROOT / "site" / f"{PREFIX}videos.json"
 
 MAX_PER_CHANNEL = 8      # newest videos kept per channel
 MAX_AGE_DAYS = 45        # older videos drop off the page
@@ -36,7 +45,7 @@ HEADERS = {
 }
 
 
-PUBLISHED = "https://custerdomecreative.github.io/my-youtube/videos.json"
+PUBLISHED = f"https://custerdomecreative.github.io/my-youtube/{PREFIX}videos.json"
 
 
 def get(url: str, attempts: int = 3) -> str:
@@ -185,6 +194,9 @@ def main() -> int:
               if not v["published"]
               or datetime.fromisoformat(v["published"]) >= cutoff]
     videos.sort(key=lambda v: v["published"], reverse=True)
+    if SECTION:
+        for v in videos:
+            v["section"] = SECTION
 
     all_failed = bool(channels) and len(errors) == len(channels)
     if all_failed and not (previous or {}).get("videos"):

@@ -44,7 +44,7 @@
   }
   function startBlock() {
     const until = Date.now() + BLOCK_MINUTES * 60000;
-    if (!confirm(`Block Videos, Channels and News until ${fmt(until)}?\n\nThis can't be undone, and it applies to your other devices too.`)) return;
+    if (!confirm(`Block Videos, Channels, News and AI until ${fmt(until)}?\n\nThis can't be undone, and it applies to your other devices too.`)) return;
     try { localStorage.setItem(BLOCK_KEY, String(until)); } catch (e) {}
     showBlock();
   }

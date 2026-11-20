@@ -33,6 +33,22 @@ article text readable on the page where the site allows it (not NYT).
 - To add or remove a source, edit `feeds.json`. Set `"fulltext": false` for
   paywalled sites.
 
+## AI section
+
+The **AI** tab (`./?s=ai`, with Videos and News inside it) works exactly like
+the Videos and News pages, from its own lists:
+
+- `ai-channels.json` lists its YouTube channels (same format as `channels.json`).
+- `ai-feeds.json` lists its news feeds (same format as `feeds.json`).
+
+The same update job fetches them on the same schedule (videos every
+30 minutes, news about every 2 hours) with `scripts/fetch_feeds.py ai` and
+`scripts/fetch_news.py ai`, which write `ai-videos.json`, `ai-news.enc.json`
+and `ai-status.json`. AI news is encrypted with the same `NEWS_PASSWORD`, so an
+unlocked device can read both. Watched and read ticks are shared with the main
+pages; Watch Later, Read Later, Playing and Favourites are kept per section.
+AI channels aren't in the Channels tab.
+
 ## Update now button
 
 Each page has an "Update now" button that runs the update workflow on demand

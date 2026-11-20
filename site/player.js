@@ -53,6 +53,12 @@ document.addEventListener("keydown", e => {
 });
 
 
+// The page's section: "" for the main pages, "ai" for the AI section
+// (./?s=ai and news.html?s=ai). Videos carry their section, so each
+// section's Playing and Favourites tabs only show their own videos.
+const SECTION = new URLSearchParams(location.search).get("s") === "ai" ? "ai" : "";
+const inSection = v => (v.section || "") === SECTION;
+
 // --- Resume where you left off, and the Playing tab ---
 // Positions are saved as { videoId: [seconds, duration, details, savedAt] }
 // and synced between devices by sync.js. Uses YouTube's iframe player API.
@@ -64,7 +70,7 @@ function saveProgress(v, seconds, duration) {
   // Near the end counts as finished: forget it, so it starts from the beginning next time.
   if (!seconds || seconds < 10 || (duration && seconds > duration - 20)) delete all[v.id];
   else all[v.id] = [Math.floor(seconds), Math.floor(duration || 0),
-    { t: v.title, c: v.channel, th: v.thumbnail, p: v.published || "" }, Date.now()];
+    { t: v.title, c: v.channel, th: v.thumbnail, p: v.published || "", ...(v.section ? { s: v.section } : {}) }, Date.now()];
   const ids = Object.keys(all);
   if (ids.length > 300) ids.sort((a, b) => (all[a][3] || 0) - (all[b][3] || 0)).slice(0, ids.length - 300).forEach(k => delete all[k]);
   writeProgress(all);
@@ -78,7 +84,7 @@ function getPlaying() {
   return Object.entries(getProgress())
     .filter(([, p]) => p[2])
     .sort((a, b) => (b[1][3] || 0) - (a[1][3] || 0))
-    .map(([id, p]) => ({ id, title: p[2].t, channel: p[2].c, thumbnail: p[2].th || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, published: p[2].p }));
+    .map(([id, p]) => ({ id, title: p[2].t, channel: p[2].c, thumbnail: p[2].th || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, published: p[2].p, section: p[2].s || "" }));
 }
 function clock(s) {
   const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, sec = String(Math.floor(s % 60)).padStart(2, "0");
@@ -92,7 +98,7 @@ const isFavourite = id => getFavourites().some(x => x.id === id);
 function toggleFavourite(v) {
   let favs = getFavourites();
   if (favs.some(x => x.id === v.id)) favs = favs.filter(x => x.id !== v.id);
-  else favs.push({ id: v.id, title: v.title, channel: v.channel, thumbnail: v.thumbnail, published: v.published || "", secs: v.secs || 0 });
+  else favs.push({ id: v.id, title: v.title, channel: v.channel, thumbnail: v.thumbnail, published: v.published || "", secs: v.secs || 0, ...(v.section ? { section: v.section } : {}) });
   try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch (e) {}
 }
 // A star button for any card. `onChange` lets the page redraw if needed.

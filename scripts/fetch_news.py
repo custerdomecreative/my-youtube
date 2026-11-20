@@ -7,6 +7,9 @@ result with the NEWS_PASSWORD secret before it is published:
   site/news.enc.json  encrypted stories (unreadable without the password)
   site/status.json    per-source counts and errors only, no story content
 
+`python scripts/fetch_news.py ai` does the same for the AI section, using
+ai-feeds.json and writing site/ai-news.enc.json and site/ai-status.json.
+
 Article text is cached between runs (.cache/articles) so each story is
 downloaded once. Nothing from the articles is ever printed to the log,
 because this repository's Actions logs are public.
@@ -32,7 +35,14 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 ROOT = Path(__file__).resolve().parent.parent
-FEEDS_FILE = ROOT / "feeds.json"
+# Optional section name ("ai"): its files are the usual names with "ai-" in front.
+SECTION = sys.argv[1] if len(sys.argv) > 1 else ""
+if SECTION and not re.fullmatch(r"[a-z]+", SECTION):
+    sys.exit(f"Bad section name: {SECTION!r}")
+PREFIX = f"{SECTION}-" if SECTION else ""
+FEEDS_FILE = ROOT / f"{PREFIX}feeds.json"
+NEWS_FILE = f"{PREFIX}news.enc.json"
+STATUS_FILE = f"{PREFIX}status.json"
 SITE = ROOT / "site"
 CACHE = ROOT / ".cache" / "articles"
 
@@ -287,7 +297,7 @@ def keep_published(now: datetime) -> bool:
     unchanged. Returns False (so news is fetched) if it can't be loaded."""
     try:
         stamp = f"?t={int(time.time())}"
-        status = SESSION.get(PUBLISHED + "status.json" + stamp, timeout=30).json()
+        status = SESSION.get(PUBLISHED + STATUS_FILE + stamp, timeout=30).json()
         age = now - datetime.fromisoformat(status["updated"])
         if not status.get("configured") or age >= timedelta(minutes=NEWS_EVERY_MINUTES):
             return False
@@ -296,11 +306,11 @@ def keep_published(now: datetime) -> bool:
         if wanted != {s["name"] for s in status.get("sources", [])}:
             print("Feed list changed; refreshing news now.")
             return False
-        enc = SESSION.get(PUBLISHED + "news.enc.json" + stamp, timeout=30)
+        enc = SESSION.get(PUBLISHED + NEWS_FILE + stamp, timeout=30)
         enc.raise_for_status()
         json.loads(enc.text)
-        (SITE / "news.enc.json").write_text(enc.text)
-        (SITE / "status.json").write_text(json.dumps(status, indent=2))
+        (SITE / NEWS_FILE).write_text(enc.text)
+        (SITE / STATUS_FILE).write_text(json.dumps(status, indent=2))
         print(f"News is {int(age.total_seconds() // 60)} min old; keeping it (refreshes about every 2 hours).")
         return True
     except Exception as exc:
@@ -314,7 +324,7 @@ def main() -> int:
     SITE.mkdir(exist_ok=True)
     if not password:
         print("NEWS_PASSWORD secret not set; skipping news.")
-        (SITE / "status.json").write_text(json.dumps(
+        (SITE / STATUS_FILE).write_text(json.dumps(
             {"updated": now.isoformat(timespec="seconds"), "configured": False, "sources": []}, indent=2))
         return 0
     if keep_published(now):
@@ -337,8 +347,8 @@ def main() -> int:
 
     stories.sort(key=lambda s: s["published"], reverse=True)
     updated = now.isoformat(timespec="seconds")
-    (SITE / "news.enc.json").write_text(json.dumps(encrypt({"updated": updated, "stories": stories}, password)))
-    (SITE / "status.json").write_text(json.dumps(
+    (SITE / NEWS_FILE).write_text(json.dumps(encrypt({"updated": updated, "stories": stories}, password)))
+    (SITE / STATUS_FILE).write_text(json.dumps(
         {"updated": updated, "configured": True, "sources": statuses}, indent=2))
 
     # Drop cached articles that have aged out.

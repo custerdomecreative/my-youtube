@@ -19,11 +19,12 @@
 </head>
 <body>
 <div class="wrap">
-  <nav class="switch" aria-label="Sections"><a href="./" aria-current="page">Videos</a><a href="channels.html">Channels</a><a href="news.html">News</a></nav>
+  <nav class="switch" aria-label="Sections"><a href="./" aria-current="page">Videos</a><a href="channels.html">Channels</a><a href="news.html">News</a><a href="./?s=ai">AI</a></nav>
   <header>
     <h1>Watch List</h1>
     <div class="updated" id="updated"></div>
   </header>
+  <nav class="switch sub" id="ai-switch" aria-label="AI" hidden><a href="./?s=ai" aria-current="page">Videos</a><a href="news.html?s=ai">News</a></nav>
   <div class="toolbar">
     <div class="tabs" role="group" aria-label="View">
       <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="count-new"></span></button>
@@ -41,8 +42,18 @@
 
 <script src="player.js"></script>
 <script>
-  // Everything here is stored on this device only.
-  const KEYS = { watched: "watched-v1", later: "later-v1", channel: "channel-v1" };
+  // Everything here is stored on this device only. The AI section (./?s=ai)
+  // shares watched ticks with Videos but keeps its own Later list and filter.
+  // SECTION comes from player.js.
+  const PREFIX = SECTION ? `${SECTION}-` : "";
+  const KEYS = { watched: "watched-v1", later: `${PREFIX}later-v1`, channel: `${PREFIX}channel-v1` };
+  if (SECTION) {
+    document.title = "AI";
+    document.querySelector("header h1").textContent = "AI";
+    document.querySelectorAll("nav.switch:not(.sub) a").forEach(a =>
+      a.getAttribute("href") === "./?s=ai" ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+    document.getElementById("ai-switch").hidden = false;
+  }
   const load = (key, fallback) => {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
   };
@@ -66,8 +77,8 @@
   function inView(name) {
     if (name === "new") return videos.filter(v => !watched.has(v.id) && !isLater(v.id));
     if (name === "later") return later;
-    if (name === "playing") return getPlaying().filter(v => !watched.has(v.id));
-    if (name === "favs") return getFavourites().slice().reverse();   // newest first
+    if (name === "playing") return getPlaying().filter(v => inSection(v) && !watched.has(v.id));
+    if (name === "favs") return getFavourites().filter(inSection).reverse();   // newest first
     return videos;
   }
   const byChannel = list => channel ? list.filter(v => v.channel === channel) : list;
@@ -124,7 +135,7 @@
 
   function buildChannelMenu() {
     const select = document.getElementById("channel");
-    const names = [...new Set([...videos, ...later, ...getPlaying(), ...getFavourites()].map(v => v.channel).filter(Boolean))]
+    const names = [...new Set([...videos, ...later, ...getPlaying().filter(inSection), ...getFavourites().filter(inSection)].map(v => v.channel).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
     if (channel && !names.includes(channel)) channel = "";
     select.replaceChildren(
@@ -209,9 +220,9 @@
   const refreshSoon = () => { clearTimeout(refreshTimer); refreshTimer = setTimeout(refreshFromStorage, 150); };
   window.addEventListener("pageshow", e => { if (e.persisted) refreshSoon(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshSoon(); });
-  window.addEventListener("storage", e => { if (["watched-v1", "later-v1", "progress-v1", "favourites-v1"].includes(e.key)) refreshSoon(); });
+  window.addEventListener("storage", e => { if (["watched-v1", KEYS.later, "progress-v1", "favourites-v1"].includes(e.key)) refreshSoon(); });
 
-  fetch(`videos.json?t=${Date.now()}`, { cache: "no-store" })
+  fetch(`${PREFIX}videos.json?t=${Date.now()}`, { cache: "no-store" })
     .then(r => r.json())
     .then(data => {
       videos = data.videos || [];

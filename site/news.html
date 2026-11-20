@@ -58,11 +58,12 @@
 </head>
 <body>
 <div class="wrap">
-  <nav class="switch" aria-label="Sections"><a href="./">Videos</a><a href="channels.html">Channels</a><a href="news.html" aria-current="page">News</a></nav>
+  <nav class="switch" aria-label="Sections"><a href="./">Videos</a><a href="channels.html">Channels</a><a href="news.html" aria-current="page">News</a><a href="./?s=ai">AI</a></nav>
   <header>
     <h1>News</h1>
     <div class="updated" id="updated"></div>
   </header>
+  <nav class="switch sub" id="ai-switch" aria-label="AI" hidden><a href="./?s=ai">Videos</a><a href="news.html?s=ai" aria-current="page">News</a></nav>
 
   <section class="unlock" id="unlock" hidden>
     <p id="unlock-msg">Enter your news password. You'll only need to do this once on each device.</p>
@@ -90,8 +91,19 @@
 </div>
 
 <script>
-  // Everything here is stored on this device only.
-  const KEYS = { key: "news-key-v1", read: "news-read-v1", later: "news-later-v1", source: "news-source-v1" };
+  // Everything here is stored on this device only. The AI section
+  // (news.html?s=ai) uses the same password and read ticks as News but keeps
+  // its own Read Later list and source filter.
+  const SECTION = new URLSearchParams(location.search).get("s") === "ai" ? "ai" : "";
+  const PREFIX = SECTION ? `${SECTION}-` : "";
+  const KEYS = { key: "news-key-v1", read: "news-read-v1", later: `${PREFIX}news-later-v1`, source: `${PREFIX}news-source-v1` };
+  if (SECTION) {
+    document.title = "AI";
+    document.querySelector("header h1").textContent = "AI";
+    document.querySelectorAll("nav.switch:not(.sub) a").forEach(a =>
+      a.getAttribute("href") === "./?s=ai" ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+    document.getElementById("ai-switch").hidden = false;
+  }
   const load = (k, fallback) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } };
   const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
   const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
@@ -361,11 +373,11 @@
   const refreshSoon = () => { clearTimeout(refreshTimer); refreshTimer = setTimeout(refreshFromStorage, 150); };
   window.addEventListener("pageshow", e => { if (e.persisted) refreshSoon(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshSoon(); });
-  window.addEventListener("storage", e => { if (["news-read-v1", "news-later-v1"].includes(e.key)) refreshSoon(); });
+  window.addEventListener("storage", e => { if (["news-read-v1", KEYS.later].includes(e.key)) refreshSoon(); });
 
   (async () => {
     try {
-      const status = await fetch(`status.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      const status = await fetch(`${PREFIX}status.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
       if (status && status.configured === false) {
         showUnlock("News isn't set up yet: the NEWS_PASSWORD secret hasn't been added to the repository.");
         $("unlock-form").hidden = true;
@@ -373,7 +385,7 @@
       }
       const failed = (status?.sources || []).filter(s => s.error).map(s => s.name);
       if (failed.length) { $("warn").textContent = `Couldn't refresh: ${failed.join(", ")}`; $("warn").hidden = false; }
-      encrypted = await fetch(`news.enc.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
+      encrypted = await fetch(`${PREFIX}news.enc.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
       const key = await savedKey();
       if (key) {
         try { return start(await decrypt(key)); } catch (e) { /* password changed */ }
