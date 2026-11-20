@@ -39,5 +39,14 @@ jobs:
           if f.entries: print(f"   first entry: {f.entries[0].get('published') or f.entries[0].get('updated')} | {f.entries[0].get('title')}")
           PY
           done
-      - uses: actions/upload-artifact@v4
-        with: { name: fixtures, path: out }
+      - name: Import AI retries
+        run: |
+          for ua in "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36" "Mozilla/5.0 (personal feed reader)" "feedparser/6.0 +https://github.com/kurtmckee/feedparser/" "curl/8.5.0" "python-requests/2.32"; do
+            for u in https://importai.substack.com/feed https://jack-clark.net/feed/; do
+              code=$(curl -sS -L -m 30 -A "$ua" -o t.xml -w "%{http_code}" "$u" -D h.txt)
+              v=$(python -c "import feedparser;f=feedparser.parse('t.xml');print(f.version or 'NOT A FEED', len(f.entries), (f.entries[0].get('published') if f.entries else ''))")
+              echo "== IA $code [$u] [${ua:0:30}] $v $(grep -iE '^(server|cf-mitigated):' h.txt | tr -d '\r' | tr '\n' ' ')"
+            done
+          done
+      - name: Fixtures for a local test build
+        run: tar czf - out | base64 -w 0 | fold -w 3000 | sed 's/^/FIX:/'
