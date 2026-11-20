@@ -1,0 +1,43 @@
+name: verify-ai (temporary)
+on: workflow_dispatch
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install --quiet feedparser
+      - name: Channels (resolved from each channel page, checked against its feed)
+        run: |
+          mkdir -p out/yt
+          for h in @aiexplained-official @AndrejKarpathy @DwarkeshPatel; do
+            curl -sS -L -m 30 -A "Mozilla/5.0 (personal feed reader)" -H "Accept-Language: en" -H "Cookie: CONSENT=YES+1; SOCS=CAI" "https://www.youtube.com/$h" -o page.html
+            id=$(grep -oE '<link rel="canonical" href="https://www\.youtube\.com/channel/UC[A-Za-z0-9_-]{22}"' page.html | grep -oE 'UC[A-Za-z0-9_-]{22}' | head -1)
+            title=$(grep -oE '<meta property="og:title" content="[^"]*"' page.html | head -1 | sed 's/.*content="//;s/"$//')
+            echo "== $h  page title: $title  canonical id: $id"
+            curl -sS -m 30 "https://www.youtube.com/feeds/videos.xml?channel_id=$id" -o "out/yt/$id.xml"
+            python - "$id" <<'PY'
+          import sys, feedparser
+          f = feedparser.parse(f"out/yt/{sys.argv[1]}.xml")
+          e = f.entries[0] if f.entries else {}
+          print(f"   feed author: {f.feed.get('author')} | entries: {len(f.entries)} | newest: {e.get('published')} {e.get('title')}")
+          PY
+          done
+      - name: News feeds (valid RSS/Atom?)
+        run: |
+          mkdir -p out/news
+          i=0
+          for u in https://www.transformernews.ai/feed https://importai.substack.com/feed https://simonwillison.net/atom/entries/ https://www.normaltech.ai/feed; do
+            i=$((i+1))
+            code=$(curl -sS -L -m 30 -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36" -o "out/news/$i.xml" -w "%{http_code} %{content_type}" "$u")
+            echo "== $u  HTTP $code"
+            python - "out/news/$i.xml" <<'PY'
+          import sys, feedparser
+          f = feedparser.parse(sys.argv[1])
+          dates = sorted((e.get("published") or e.get("updated") or "" for e in f.entries), reverse=True)
+          print(f"   format: {f.version or 'NOT A FEED'} | bozo: {f.bozo} {repr(f.get('bozo_exception',''))[:120]} | title: {f.feed.get('title')} | entries: {len(f.entries)}")
+          if f.entries: print(f"   first entry: {f.entries[0].get('published') or f.entries[0].get('updated')} | {f.entries[0].get('title')}")
+          PY
+          done
+      - uses: actions/upload-artifact@v4
+        with: { name: fixtures, path: out }
