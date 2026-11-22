@@ -28,6 +28,7 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # works with python -I too
 from learn_crypto import seal
 
 ROOT = Path(__file__).resolve().parent.parent

@@ -14,6 +14,7 @@ import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # works with python -I too
 from learn_crypto import encrypt, open_sealed, private_key, public_key_b64
 
 ROOT = Path(__file__).resolve().parent.parent

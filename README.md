@@ -49,6 +49,26 @@ unlocked device can read both. Watched and read ticks are shared with the main
 pages; Watch Later, Read Later, Playing and Favourites are kept per section.
 AI channels aren't in the Channels tab.
 
+## Learn (in the AI section)
+
+`learn.html` shows a short lesson each weekday and AI headlines on Monday,
+Wednesday and Friday. Its content is private, like the news:
+
+- `learn/course.json` is the course plan (titles only) and its start date;
+  lesson n comes out on the nth weekday.
+- Lessons and headline digests are stored **sealed** in `learn/lessons/` and
+  `learn/headlines/`. Anyone can seal a file with `learn/public-key.txt`
+  (`python scripts/learn_seal.py lesson FILE.md` or `... headlines FILE.json`),
+  but only the update job can open them: the matching private key is derived
+  from `NEWS_PASSWORD`. `scripts/build_learn.py` opens them and publishes
+  `learn.enc.json`, encrypted with the news password. Never commit plain
+  lesson or digest files.
+- `headline-feeds.json` lists the headline sources. The "Gather AI headlines"
+  workflow collects recent stories (Mon/Wed/Fri, 06:05 UTC) onto the
+  `headline-candidates` branch; a scheduled Claude task then picks the top
+  five, writes them up and pushes a sealed digest.
+- "Done" ticks sync between devices like the rest.
+
 ## Update now button
 
 Each page has an "Update now" button that runs the update workflow on demand
