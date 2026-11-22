@@ -72,6 +72,15 @@ jobs:
         run: |
           pip install --quiet feedparser trafilatura cryptography requests
           python scripts/fetch_news.py ai
+      - name: Build Learn
+        # The AI section's Learn tab: sealed lessons and headline digests in
+        # learn/, opened with a key derived from NEWS_PASSWORD and re-encrypted.
+        continue-on-error: true
+        env:
+          NEWS_PASSWORD: ${{ secrets.NEWS_PASSWORD }}
+        run: |
+          pip install --quiet cryptography
+          python scripts/build_learn.py
       - name: Search key
         # Restricted to this site and YouTube searches, so it's meant to be public.
         env:
