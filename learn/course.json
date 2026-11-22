@@ -1,5 +1,6 @@
 {
   "start": "2026-11-23",
+  "early": { "1": "2026-11-22" },
   "tracks": {
     "hood": "Under the hood",
     "agents": "Working with AI agents",

@@ -50,7 +50,11 @@ def main() -> int:
     priv = private_key(password)
     course = json.loads((LEARN / "course.json").read_text())
     plan = course["lessons"]
-    dates = release_dates(date.fromisoformat(course["start"]), len(plan))
+    # "early" releases a lesson on a set date (e.g. a preview at the weekend);
+    # the rest follow one per weekday from the start date.
+    early = {int(n): date.fromisoformat(d) for n, d in course.get("early", {}).items()}
+    weekdays = iter(release_dates(date.fromisoformat(course["start"]), len(plan) - len(early)))
+    dates = [early[i + 1] if (i + 1) in early else next(weekdays) for i in range(len(plan))]
     today = datetime.now(timezone.utc).date()
 
     lessons, errors = [], []
