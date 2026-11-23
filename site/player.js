@@ -66,9 +66,14 @@ const PROGRESS_KEY = "progress-v1";
 function getProgress() { try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || "{}"); } catch (e) { return {}; } }
 function writeProgress(all) { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(all)); } catch (e) {} }
 function saveProgress(v, seconds, duration) {
+  seconds = Number(seconds) || 0;
+  // Under 10 seconds isn't worth remembering, and it's also what the player
+  // reports before playback has really started (0). Never let such a reading
+  // erase a saved spot: only finishing or "Mark watched" clears it.
+  if (seconds < 10) return;
   const all = getProgress();
   // Near the end counts as finished: forget it, so it starts from the beginning next time.
-  if (!seconds || seconds < 10 || (duration && seconds > duration - 20)) delete all[v.id];
+  if (duration && seconds > duration - 20) delete all[v.id];
   else all[v.id] = [Math.floor(seconds), Math.floor(duration || 0),
     { t: v.title, c: v.channel, th: v.thumbnail, p: v.published || "", ...(v.section ? { s: v.section } : {}) }, Date.now()];
   const ids = Object.keys(all);
@@ -125,8 +130,11 @@ function loadYouTubeApi() {
   return ytApi;
 }
 const activePlayers = new Set();
+// Only players that have actually played are saved: one that was opened but
+// never started (autoplay blocked, left straight away) has no real position.
 function saveAll() {
   activePlayers.forEach(p => {
+    if (!p.started) return;
     try { saveProgress(p.video, p.getCurrentTime(), p.getDuration()); } catch (e) {}
   });
 }
@@ -218,8 +226,9 @@ function makePlayer(v) {
         events: {
           onReady: () => unstick(yt, iframe, v, resumeAt),
           onStateChange: e => {
-            if (e.data === 2) saveProgress(v, yt.getCurrentTime(), yt.getDuration());   // paused
-            if (e.data === 0) saveProgress(v, 0, 0);                                       // finished
+            if (e.data === 1) yt.started = true;                                                    // playing
+            if (e.data === 2 && yt.started) saveProgress(v, yt.getCurrentTime(), yt.getDuration());   // paused
+            if (e.data === 0) clearProgress(v.id);                                                  // finished
           },
         },
       });
