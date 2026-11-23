@@ -1,4 +1,5 @@
-"""Build the full video catalogue for each channel in channels.json.
+"""Build the full video catalogue for each channel in channels.json
+(plus AI channels marked "catalog": true in ai-channels.json).
 
 Uses the YouTube Data API (YOUTUBE_API_KEY secret) to list every long-form
 upload, with its duration and view count. Writes:
@@ -143,6 +144,11 @@ def main() -> int:
         return 0
     CACHE.mkdir(parents=True, exist_ok=True)
     channels = json.loads(CHANNELS_FILE.read_text())
+    # AI channels marked "catalog": true are browsable here too (tagged "ai",
+    # so their Watch Later / Playing / Favourites stay in the AI section).
+    ai_file = ROOT / "ai-channels.json"
+    if ai_file.exists():
+        channels += [{**c, "section": "ai"} for c in json.loads(ai_file.read_text()) if c.get("catalog")]
     index, failures = [], 0
     for channel in channels:
         if not channel.get("id"):
@@ -169,7 +175,8 @@ def main() -> int:
                       key=lambda r: r[2], reverse=True)
         (OUT / f"{channel['id']}.json").write_text(json.dumps(
             {"name": channel["name"], "id": channel["id"], "videos": rows}, separators=(",", ":")))
-        index.append({"name": channel["name"], "id": channel["id"], "count": len(rows), "error": error})
+        index.append({"name": channel["name"], "id": channel["id"], "count": len(rows), "error": error,
+                      **({"section": channel["section"]} if channel.get("section") else {})})
         print(f"{channel['name']}: {len(rows)} videos" + (f" (ERROR {error})" if error else ""))
     (OUT / "index.json").write_text(json.dumps({
         "configured": True,

@@ -63,7 +63,9 @@
 
   // Re-read shared state each time, in case the Videos page changed it.
   const getWatched = () => new Set(load(KEYS.watched, []));
-  const getLater = () => load(KEYS.later, []);
+  // AI-section videos (from AI channels shown here) use the AI Watch Later list.
+  const laterKey = v => (v && v.section === "ai") ? "ai-later-v1" : KEYS.later;
+  const getLater = v => load(laterKey(v), []);
 
   function when(iso) {
     if (!iso) return "";
@@ -96,26 +98,26 @@
       ]),
     ]);
     function paint() {
-      const w = getWatched().has(v.id), l = getLater().some(x => x.id === v.id);
+      const w = getWatched().has(v.id), l = getLater(v).some(x => x.id === v.id);
       node.classList.toggle("watched", w);
       tick.textContent = w ? "Watched ✓" : "Mark watched";
       laterBtn.classList.toggle("on", l);
       laterBtn.textContent = l ? "Saved ✓" : "Watch later";
     }
     laterBtn.addEventListener("click", () => {
-      let later = getLater();
+      let later = getLater(v);
       if (later.some(x => x.id === v.id)) later = later.filter(x => x.id !== v.id);
       else {
         later.push(v);
         const w = getWatched(); w.delete(v.id); store(KEYS.watched, [...w]);
       }
-      store(KEYS.later, later);
+      store(laterKey(v), later);
       paint();
     });
     tick.addEventListener("click", () => {
       const w = getWatched();
       if (w.has(v.id)) w.delete(v.id);
-      else { w.add(v.id); store(KEYS.later, getLater().filter(x => x.id !== v.id)); clearProgress(v.id); }
+      else { w.add(v.id); store(laterKey(v), getLater(v).filter(x => x.id !== v.id)); clearProgress(v.id); }
       store(KEYS.watched, [...w]);
       paint();
       if (state.hideWatched && w.has(v.id)) node.remove();
@@ -162,7 +164,7 @@
       try {
         const data = await fetch(`catalog/${id}.json?v=${encodeURIComponent(index.updated || "")}`).then(r => r.json());
         loaded[id] = data.videos.map(([vid, title, published, secs, views]) => ({
-          id: vid, title, published, secs, views, channel: info.name,
+          id: vid, title, published, secs, views, channel: info.name, ...(info.section ? { section: info.section } : {}),
           thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
         }));
       } catch (e) {
