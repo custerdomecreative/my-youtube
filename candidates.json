@@ -1,0 +1,540 @@
+{
+ "gathered": "2026-11-23T17:56+00:00",
+ "feeds": [
+  {
+   "name": "The Verge",
+   "kept": 10,
+   "error": null
+  },
+  {
+   "name": "Ars Technica",
+   "kept": 5,
+   "error": null
+  },
+  {
+   "name": "MIT Technology Review",
+   "kept": 2,
+   "error": null
+  },
+  {
+   "name": "The Guardian",
+   "kept": 0,
+   "error": "HTTPError: 403 Client Error: Forbidden for url: https://www.theguardian.com/technology/arti"
+  },
+  {
+   "name": "TechCrunch",
+   "kept": 15,
+   "error": null
+  },
+  {
+   "name": "Wired",
+   "kept": 10,
+   "error": null
+  },
+  {
+   "name": "OpenAI",
+   "kept": 2,
+   "error": null
+  },
+  {
+   "name": "Google DeepMind",
+   "kept": 1,
+   "error": null
+  },
+  {
+   "name": "Google AI",
+   "kept": 1,
+   "error": null
+  },
+  {
+   "name": "Hugging Face",
+   "kept": 2,
+   "error": null
+  },
+  {
+   "name": "Microsoft Fabric",
+   "kept": 3,
+   "error": null
+  },
+  {
+   "name": "Power BI",
+   "kept": 0,
+   "error": null
+  },
+  {
+   "name": "Databricks",
+   "kept": 1,
+   "error": null
+  },
+  {
+   "name": "STAT",
+   "kept": 3,
+   "error": null
+  },
+  {
+   "name": "Fierce Biotech",
+   "kept": 0,
+   "error": null
+  },
+  {
+   "name": "Fierce Pharma",
+   "kept": 0,
+   "error": null
+  },
+  {
+   "name": "Silicon Republic",
+   "kept": 1,
+   "error": null
+  }
+ ],
+ "items": [
+  {
+   "source": "MIT Technology Review",
+   "group": "AI news",
+   "title": "A legendary philosopher isn’t buying Anthropic’s consciousness argument",
+   "url": "https://www.technologyreview.com/2026/11/23/1149569/a-legendary-philosopher-isnt-buying-anthropics-consciousness-argument/",
+   "published": "2026-11-23T17:36+00:00",
+   "summary": "This story originally appeared in The Algorithm, our weekly newsletter on AI. To get stories like this in your inbox first, sign up here. Before going public last week, Anthropic named the possibility that AI could be conscious or sentient as a risk factor for anyone investing. Given “the way we…"
+  },
+  {
+   "source": "Hugging Face",
+   "group": "AI labs",
+   "title": "RoboTrack: Point tracking for real-world robotic manipulation",
+   "url": "https://huggingface.co/blog/allenai/robotrack",
+   "published": "2026-11-23T17:20+00:00",
+   "summary": ""
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "Amazon snaps up Decart’s AI optimization tech for $7.5B as it prepares to sell Trainium chips",
+   "url": "https://techcrunch.com/2026/11/23/amazon-snaps-up-decarts-ai-optimization-tech-for-7-5b-as-it-prepares-to-sell-trainium-chips/",
+   "published": "2026-11-23T17:14+00:00",
+   "summary": "Amazon is acquiring Decart’s AI optimization technology and research team in a reported $7.5 billion deal."
+  },
+  {
+   "source": "Google AI",
+   "group": "AI labs",
+   "title": "A more tailored Google Search that’s uniquely yours",
+   "url": "https://blog.google/products-and-platforms/products/search/google-search-personal-intelligence-apps/",
+   "published": "2026-11-23T17:00+00:00",
+   "summary": "Google Search bar with the text \"Personal Intelligence\" surrounded by the Google Wallet, Google Drive, GMail, Google Photos, Google Calendar, and Google G logo icons"
+  },
+  {
+   "source": "Google DeepMind",
+   "group": "AI labs",
+   "title": "Finding faster quantum algorithms with agents and formal verification",
+   "url": "https://deepmind.google/blog/finding-faster-quantum-algorithms-with-agents-and-formal-verification/",
+   "published": "2026-11-23T16:59+00:00",
+   "summary": "Using agent teams and formal verification to improve quantum algorithms for fusion and chemistry."
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "Jensen Huang isn’t out of the woods yet",
+   "url": "https://techcrunch.com/2026/11/23/jensen-huang-isnt-out-of-the-woods-yet/",
+   "published": "2026-11-23T16:57+00:00",
+   "summary": "It’s safe to say no one expected this. Monday morning, Jensen Huang returned as CEO of Nvidia, after resigning the position following news of multiple affairs, including one with a subordinate and one with a woman tied to Chinese intelligence services. With so much of the AI industry built on top…"
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "Trump reportedly called into Nvidia board meeting to advocate for Huang’s return",
+   "url": "https://techcrunch.com/2026/11/23/trump-reportedly-called-into-nvidia-board-meeting-to-advocate-for-huangs-return/",
+   "published": "2026-11-23T16:39+00:00",
+   "summary": "\"I spoke to them, let me put it that way... And I convinced them,\" the president told CNBC."
+  },
+  {
+   "source": "The Verge",
+   "group": "AI news",
+   "title": "White House brags that Trump was ‘totally involved’ in getting Jensen reinstated",
+   "url": "https://www.theverge.com/policy/1040096/trump-nvidia-jensen-huang-reinstated",
+   "published": "2026-11-23T16:30+00:00",
+   "summary": "It sure looked like President Donald Trump played a role in Jensen Huang's reinstatement as Nvidia CEO - and now the White House is making sure everyone knows he was. \"President Trump was totally involved and this is a great decision by the NVIDIA board,\" White House communications director Steven…"
+  },
+  {
+   "source": "The Verge",
+   "group": "AI news",
+   "title": "Tech leaders are celebrating Jensen Huang’s return",
+   "url": "https://www.theverge.com/tech/1040069/jensen-huang-return-elon-musk-sam-altman-yay",
+   "published": "2026-11-23T16:14+00:00",
+   "summary": "Let's say you're Jensen Huang. You (allegedly) cheated on your wife with an alleged Chinese spy, allegedly had an affair with not one, but two subordinates, and (allegedly!) \"terrorized\" your employees, a series of indiscretions that led to your ouster from what was once the world's most valuable…"
+  },
+  {
+   "source": "Ars Technica",
+   "group": "AI news",
+   "title": "Jensen Huang reinstated as Nvidia CEO, board chair",
+   "url": "https://arstechnica.com/ai/2026/11/jensen-huang-reinstated-as-nvidia-ceo-board-chair/",
+   "published": "2026-11-23T15:46+00:00",
+   "summary": "Trump says he spoke to the board and that Huang \"did nothing wrong.\""
+  },
+  {
+   "source": "Microsoft Fabric",
+   "group": "Data stack",
+   "title": "Scalar User-defined functions (UDFs) in Microsoft Fabric Data Warehouse (Generally Available)",
+   "url": "https://community.fabric.microsoft.com/t5/Fabric-Updates-Blog/Scalar-User-defined-functions-UDFs-in-Microsoft-Fabric-Data/ba-p/5399753",
+   "published": "2026-11-23T15:19+00:00",
+   "summary": "T-SQL scalar user-defined functions (UDFs) are now generally available in Microsoft Fabric Data Warehouse and the SQL analytics endpoint. During preview, scalar UDFs gained support for procedural T-SQL and additional query shapes through Expression Block inlining, a technology built to run…"
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "Trump endorses Jensen Huang’s return to Nvidia, says US has no evidence of wrongdoing",
+   "url": "https://techcrunch.com/2026/11/23/trump-endorses-jensen-huangs-return-to-nvidia-says-us-has-no-evidence-of-wrongdoing/",
+   "published": "2026-11-23T15:04+00:00",
+   "summary": "The president cited the U.S. attorney general in defending Huang's return, while urging Nvidia to continue its export-control investigation."
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "Sierra doubles valuation to $30B within six months as demand for AI in CX takes off",
+   "url": "https://techcrunch.com/2026/11/23/sierra-doubles-valuation-to-30b-within-six-months-as-demand-for-ai-in-cx-takes-off/",
+   "published": "2026-11-23T14:43+00:00",
+   "summary": "Enterprise customer experience company Sierra, co-founded by former Salesforce co-CEO Bret Taylor, said on Monday that it has raised $1.75 billion in a Series F round."
+  },
+  {
+   "source": "STAT",
+   "group": "Pharma",
+   "title": "STAT+: Pharmalittle: We’re reading about Capricor’s Duchenne drug, Lilly’s 15th acquisition of 2026, and more",
+   "url": "https://www.statnews.com/pharmalot/2026/11/23/fda-rejects-capricor-duchenne-drug-lilly-acquires-loqus23-therapeutics/?utm_campaign=rss",
+   "published": "2026-11-23T14:38+00:00",
+   "summary": "The FDA again rejected a hotly debated experimental Duchenne muscular dystrophy drug from Capricor Therapeutics"
+  },
+  {
+   "source": "Wired",
+   "group": "AI news",
+   "title": "Jensen Huang Is Back as Nvidia CEO",
+   "url": "https://www.wired.com/story/jensen-huang-is-back-as-nvidia-ceo/",
+   "published": "2026-11-23T14:27+00:00",
+   "summary": "The company’s board of directors has reinstated Huang a little more than a week after the CEO resigned amid allegations of multiple affairs, including with a direct report."
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "Nvidia reverses course and brings Jensen Huang back as CEO",
+   "url": "https://techcrunch.com/2026/11/23/nvidia-reverses-course-and-brings-jensen-huang-back-as-ceo/",
+   "published": "2026-11-23T14:21+00:00",
+   "summary": "The stunning reversal was supported by senior officials in the U.S. government."
+  },
+  {
+   "source": "The Verge",
+   "group": "AI news",
+   "title": "Jensen Huang is back as Nvidia’s CEO",
+   "url": "https://www.theverge.com/tech/1039937/nvidia-ceo-jensen-huang-reinstated",
+   "published": "2026-11-23T14:04+00:00",
+   "summary": "Nvidia has reinstated Jensen Huang as its CEO. The company announced on Monday morning that the board \"voted unanimously to reinstate Mr. Huang following a series of discussions and meetings with Mr. Huang, after which the Board was satisfied with respect to Mr. Huang's candor and ability to lead…"
+  },
+  {
+   "source": "Wired",
+   "group": "AI news",
+   "title": "Nvidia Is Powering Brain-Computer Interfaces Now",
+   "url": "https://www.wired.com/story/nvidia-is-powering-brain-computer-interfaces-now/",
+   "published": "2026-11-23T13:11+00:00",
+   "summary": "Brain-computer interface company Paradromics is using Nvidia’s computing hardware and software to process brain data."
+  },
+  {
+   "source": "Ars Technica",
+   "group": "AI news",
+   "title": "Review: The Asus ProArt P16 offers a glimpse of a future powered by local AI",
+   "url": "https://arstechnica.com/reviews/2026/11/review-the-asus-proart-p16-offers-a-glimpse-of-a-future-powered-by-local-ai/",
+   "published": "2026-11-23T12:00+00:00",
+   "summary": "The new Asus ProArt laptop costs up to $7,000, but it can run a gaggle of local AI agents."
+  },
+  {
+   "source": "Wired",
+   "group": "AI news",
+   "title": "Submit Your Questions: Will Anyone Keep You Safe From AI?",
+   "url": "https://www.wired.com/story/livestream-will-anyone-keep-us-safe-from-ai/",
+   "published": "2026-11-23T12:00+00:00",
+   "summary": "Experts agree that AI, in one way or another, poses real danger. Will the industry do anything about it? Join our livestream on December 2 to hear your questions answered."
+  },
+  {
+   "source": "The Verge",
+   "group": "AI news",
+   "title": "Meta Muse can do your Black Friday shopping at Walmart",
+   "url": "https://www.theverge.com/ai-artificial-intelligence/1039874/walmart-agent-gateway-meta-muse-black-friday",
+   "published": "2026-11-23T11:00+00:00",
+   "summary": "Walmart will now let Meta's Muse shop on your behalf, allowing the AI agent to find and purchase Black Friday deals via Walmart's Sparky AI assistant. The retail giant is rolling out a live implementation of the Agent Gateway it announced last month, which helps AI agents find relevant products for…"
+  },
+  {
+   "source": "Wired",
+   "group": "AI news",
+   "title": "States Sue SpaceX Over Grok Deepfakes",
+   "url": "https://www.wired.com/story/states-sue-spacex-over-grok-deepfakes/",
+   "published": "2026-11-23T11:00+00:00",
+   "summary": "The attorneys general of Oregon and Virginia are suing several of Elon Musk’s companies, alleging they implemented weak safeguards against sexualized imagery of real people, including children."
+  },
+  {
+   "source": "Silicon Republic",
+   "group": "Ireland",
+   "title": "Irish start-up Hoplite bags $5.5m to speed up agentic use",
+   "url": "https://www.siliconrepublic.com/start-ups/stripe-y-combinator-hoplite-ai-agentic-cloud-funding-ireland-limerick",
+   "published": "2026-11-23T10:56+00:00",
+   "summary": "CEO Morrissey previously interned at Stripe and Manna, while Redmond interned at Amazon Web Services. Read more: Irish start-up Hoplite bags $5.5m to speed up agentic use"
+  },
+  {
+   "source": "Wired",
+   "group": "AI news",
+   "title": "Goodbye, World: The End of Programmers",
+   "url": "https://www.wired.com/story/goodbye-world-the-end-of-programmers/",
+   "published": "2026-11-23T10:00+00:00",
+   "summary": "The last thing you should ever read—and the last thing I may ever write—about the craft of coding."
+  },
+  {
+   "source": "STAT",
+   "group": "Pharma",
+   "title": "Opinion: If the AI bubble bursts, it could create a serious problem for health care",
+   "url": "https://www.statnews.com/2026/11/23/ai-bubble-medical-artificial-intelligence-health/?utm_campaign=rss",
+   "published": "2026-11-23T09:30+00:00",
+   "summary": "“A health AI company's market value and the medical value of its technology are two different things,” writes David Adler."
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "How Notable Capital, GIC, and Baillie Gifford bet big on Anthropic before its IPO",
+   "url": "https://techcrunch.com/2026/11/22/how-notable-capital-gic-and-baillie-gifford-bet-big-on-anthropic-before-its-ipo/",
+   "published": "2026-11-23T01:25+00:00",
+   "summary": "Three significant backers share what gave them conviction to bet billions on Anthropic."
+  },
+  {
+   "source": "Hugging Face",
+   "group": "AI labs",
+   "title": "How to build and maintain an agentic evaluation",
+   "url": "https://huggingface.co/blog/agentic-evals",
+   "published": "2026-11-23T00:00+00:00",
+   "summary": ""
+  },
+  {
+   "source": "The Verge",
+   "group": "AI news",
+   "title": "We haven’t seen the last of the major tech outages",
+   "url": "https://www.theverge.com/tech/1039851/major-tech-outages",
+   "published": "2026-11-22T22:48+00:00",
+   "summary": "Over the last week or so, we have seen a nationwide FAA ground stop, a multi-day Outlook outage that brought entire companies to a standstill, and a banking outage at JPMorgan Chase. But the consensus is that there are more to come. Director of National Intelligence Jay Clayton told CNN: \"The…"
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "OpenAI’s chief scientist has thoughts on how to limit AI development",
+   "url": "https://techcrunch.com/2026/11/22/openais-chief-scientist-has-thoughts-on-how-to-limit-ai-development/",
+   "published": "2026-11-22T21:14+00:00",
+   "summary": "To establish a speed limit on AI development, you need to agree on how to measure speed."
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "Why data centers are at the center of the Big Tech backlash",
+   "url": "https://techcrunch.com/2026/11/22/why-data-centers-are-at-the-center-of-the-big-tech-backlash/",
+   "published": "2026-11-22T18:08+00:00",
+   "summary": "Journalist Paris Marx unpacks his new book \"Hyperscale.\""
+  },
+  {
+   "source": "The Verge",
+   "group": "AI news",
+   "title": "Binding of Isaac developer removes AI music from Repentance Plus",
+   "url": "https://www.theverge.com/games/1039770/binding-of-isaac-ai-music",
+   "published": "2026-11-22T17:25+00:00",
+   "summary": "The Binding of Isaac: Repentance Plus has spent the last few days getting review-bombed on Steam after it was discovered that a particular segment of the game used AI music. Reddit user ShweetsStuff discovered the songs used during a Grand Theft Auto-themed section. They found several audio files…"
+  },
+  {
+   "source": "The Verge",
+   "group": "AI news",
+   "title": "The vibe-coding revolution is coming to all the gadgets",
+   "url": "https://www.theverge.com/column/1039139/vibe-coding-gadgets-tv-camera",
+   "published": "2026-11-22T13:00+00:00",
+   "summary": "This is The Stepback, a weekly newsletter breaking down one essential story from the tech world. For more on the vibe-hacking of everything, follow David Pierce. The Stepback arrives in our subscribers' inboxes on Sunday at 8AM ET. Opt in for The Stepback here. How it started Like so many things…"
+  },
+  {
+   "source": "Wired",
+   "group": "AI news",
+   "title": "Banks Have Had It Up to Here With Your AI Agent",
+   "url": "https://www.wired.com/story/banks-are-cracking-down-on-ai-agents/",
+   "published": "2026-11-22T11:00+00:00",
+   "summary": "Major US financial institutions are banning third-party bots from logging into your accounts—and warning that any costly bot mistakes are strictly your problem."
+  },
+  {
+   "source": "OpenAI",
+   "group": "AI labs",
+   "title": "Perplexity and Intelligence",
+   "url": "https://openai.com/index/perplexity-and-intelligence",
+   "published": "2026-11-22T00:00+00:00",
+   "summary": "How perplexity measures progress in AI models, and why it could help developers establish a shared approach to evaluating emerging capabilities."
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "Signal restricts mobile screenshots as it confronts ‘existential threat’ of AI surveillance",
+   "url": "https://techcrunch.com/2026/11/21/signal-restricts-mobile-screenshots-as-it-confronts-existential-threat-of-ai-surveillance/",
+   "published": "2026-11-21T21:37+00:00",
+   "summary": "Signal is limiting users' ability to take screenshots in both its Android and iOS apps."
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "A tale of two Nvidias",
+   "url": "https://techcrunch.com/2026/11/21/a-tale-of-two-nvidias/",
+   "published": "2026-11-21T21:07+00:00",
+   "summary": "We got two very different pictures of Nvidia — the company’s latest earnings report vs. the tech executives loudly calling for Jensen Huang’s return."
+  },
+  {
+   "source": "The Verge",
+   "group": "AI news",
+   "title": "The UN fails to agree on rules regulating ‘killer robots’",
+   "url": "https://www.theverge.com/tech/1039554/un-regulations-killer-robots",
+   "published": "2026-11-21T20:03+00:00",
+   "summary": "One of the items on the agenda for UN diplomats meeting in Geneva this week was working towards rules regarding the use of autonomous weapons, or so-called \"killer robots.\" Eventually, representatives left the meetings agreeing to \"start discussing options\" after a largely fruitless week of…"
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "Here are the top AI agents that can live in your text messages",
+   "url": "https://techcrunch.com/2026/11/21/all-the-ai-agents-that-can-live-in-your-text-messages/",
+   "published": "2026-11-21T17:00+00:00",
+   "summary": "We created a list of the most notable AI agents that can live in your text messages, from general assistants to agents designed for families, travel, and work."
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "Is selling an AI version of your face to this microdrama startup the future of Hollywood?",
+   "url": "https://techcrunch.com/2026/11/21/is-selling-an-ai-version-of-your-face-to-this-microdrama-startup-the-future-of-hollywood/",
+   "published": "2026-11-21T16:00+00:00",
+   "summary": "An actor has licensed his face to a microdrama startup — in a trend that's already popular in China. Experts question the long-term consequences if this becomes a trend in Hollywood, too."
+  },
+  {
+   "source": "The Verge",
+   "group": "AI news",
+   "title": "Can Anthropic afford to put safety first?",
+   "url": "https://www.theverge.com/podcast/1038701/anthropic-ipo-ai-safety-openai-nvidia-structure",
+   "published": "2026-11-21T15:00+00:00",
+   "summary": "Today, I’m talking with Hayden Field, The Verge’s senior AI reporter, about the Anthropic IPO for the third and final episode in our series about AI in real life. The AI lab behind Claude went public on the Nasdaq last Thursday. The numbers are gigantic, but not really that important for this…"
+  },
+  {
+   "source": "The Verge",
+   "group": "AI news",
+   "title": "Chess.com’s next move is a new hub for classic games, from mahjong to sudoku",
+   "url": "https://www.theverge.com/games/1038099/chess-classic-games-expansion-ai",
+   "published": "2026-11-21T14:00+00:00",
+   "summary": "Chess.com is ready to go a lot bigger than chess. After launching Gambit, a gambling-free poker site, earlier this year, the company is now adding 10 more games: backgammon, checkers, go, hearts, mahjong, shogi, sudoku, solitaire, xiangqi, and a Scrabble alternative called word. They're all part of…"
+  },
+  {
+   "source": "Wired",
+   "group": "AI news",
+   "title": "The Outages Are Just Getting Started",
+   "url": "https://www.wired.com/story/brace-yourself-for-years-of-outage-chaos/",
+   "published": "2026-11-21T13:00+00:00",
+   "summary": "AI is forcing companies to patch their systems faster as attackers race to exploit newly discovered vulnerabilities. Welcome to internet outage hell."
+  },
+  {
+   "source": "Wired",
+   "group": "AI news",
+   "title": "Cops Are Pushing Extremely Corny ‘Grand Theft Auto 6’ Slop",
+   "url": "https://www.wired.com/story/cops-are-being-extremely-corny-about-gta-vi/",
+   "published": "2026-11-20T23:24+00:00",
+   "summary": "The blockbuster game makes no secret of its contempt for law enforcement. Real police departments using it to recruit new members and scold the public apparently didn’t get the memo."
+  },
+  {
+   "source": "Ars Technica",
+   "group": "AI news",
+   "title": "Google rolls out new search homepage with AI chat history and no search button",
+   "url": "https://arstechnica.com/ai/2026/11/googles-latest-search-page-redesign-drops-the-search-button-adds-ai-sidebar/",
+   "published": "2026-11-20T21:58+00:00",
+   "summary": "Google search is making it even easier to access AI tools on the search page."
+  },
+  {
+   "source": "Ars Technica",
+   "group": "AI news",
+   "title": "Meta reconsiders 2030 net-zero goal amid record emissions from AI data centers",
+   "url": "https://arstechnica.com/ai/2026/11/meta-reconsiders-2030-net-zero-goal-amid-record-emissions-from-ai-data-centers/",
+   "published": "2026-11-20T21:47+00:00",
+   "summary": "Meta is “re-evaluating” 2030 sustainability goals. Will others follow?"
+  },
+  {
+   "source": "Ars Technica",
+   "group": "AI news",
+   "title": "Researcher plants 2m canaries into the AI supply chain. A privacy disaster surfaced.",
+   "url": "https://arstechnica.com/security/2026/11/a-leaky-ai-supply-chain-is-exposing-secret-user-data-at-an-alarming-rate/",
+   "published": "2026-11-20T20:59+00:00",
+   "summary": "Test using prompts with unique, trackable secrets proves that data doesn't stay private."
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "Daniel Ek backs AI researcher’s fusion power startup. Here’s what they’re building.",
+   "url": "https://techcrunch.com/2026/11/20/daniel-ek-backs-ai-researchers-fusion-power-startup-heres-what-theyre-building/",
+   "published": "2026-11-20T19:53+00:00",
+   "summary": "Spotify founder Daniel Ek is backing Europa Fusion, a fusion power startup founded by an AI researcher. Here's what the startup is building."
+  },
+  {
+   "source": "Wired",
+   "group": "AI news",
+   "title": "Jensen Huang’s ‘Lying’ Alarmed Nvidia Board Ahead of His Resignation",
+   "url": "https://www.wired.com/story/jensen-huangs-lying-alarmed-nvidia-board-ahead-of-his-resignation/",
+   "published": "2026-11-20T19:52+00:00",
+   "summary": "Amid allegations of multiple affairs, including with a direct report and an alleged Chinese intelligence asset, sources tell WIRED the Nvidia board’s main issue was the former CEO’s “lack of candor.”"
+  },
+  {
+   "source": "TechCrunch",
+   "group": "AI news",
+   "title": "AI claimed a solution to the 167-year-old Riemann hypothesis — and a human did, too",
+   "url": "https://techcrunch.com/2026/11/20/ai-claimed-a-solution-to-the-167-year-old-riemann-hypothesis-and-a-human-did-too/",
+   "published": "2026-11-20T19:32+00:00",
+   "summary": "Mathematicians are having their minds blown by the latest AI-driven result — and there's a competing human solution, too."
+  },
+  {
+   "source": "MIT Technology Review",
+   "group": "AI news",
+   "title": "The most misunderstood graph in AI just got a major update",
+   "url": "https://www.technologyreview.com/2026/11/20/1149399/the-most-misunderstood-graph-in-ai-just-got-a-major-update/",
+   "published": "2026-11-20T18:15+00:00",
+   "summary": "A new report from the AI evaluation nonprofit METR finds that some AI capabilities are continuing to improve along an exponential trajectory—but it also indicates that models aren’t quite as good at tasks that require judgment as they are at coding. The report is an update to the organization’s…"
+  },
+  {
+   "source": "Databricks",
+   "group": "Data stack",
+   "title": "Interactive Databricks Reference Architectures Across 70 Industries",
+   "url": "https://www.databricks.com/blog/interactive-databricks-reference-architectures-across-70-industries",
+   "published": "2026-11-20T14:48+00:00",
+   "summary": "Why we built itMost Databricks architecture talks used to start with the same slide: ingestion on the left..."
+  },
+  {
+   "source": "STAT",
+   "group": "Pharma",
+   "title": "STAT+: Pharmalittle: We’re reading about Sanofi eyeing Insmed, AI speeding drug development, and more",
+   "url": "https://www.statnews.com/pharmalot/2026/11/20/sanofi-eyeing-insmed-ai-speeding-drug-development/?utm_campaign=rss",
+   "published": "2026-11-20T14:16+00:00",
+   "summary": "Sanofi weighs an Insmed takeover, the FDA slams J&J over misleading bladder cancer drug claims, and more pharma news:"
+  },
+  {
+   "source": "Microsoft Fabric",
+   "group": "Data stack",
+   "title": "On-premises data gateway November 2026 release",
+   "url": "https://community.fabric.microsoft.com/t5/Fabric-Updates-Blog/On-premises-data-gateway-November-2026-release/ba-p/5430005",
+   "published": "2026-11-20T12:45+00:00",
+   "summary": "The November 2026 release of the on-premises data gateway (version 3000.342) continues our commitment to secure, reliable and accessible connectivity between on-premises data sources and Microsoft Fabric services. This release focuses on strengthening gateway security, improving performance and…"
+  },
+  {
+   "source": "Microsoft Fabric",
+   "group": "Data stack",
+   "title": "Fabric Data Warehouse at Ignite: Built for AI-era analytics",
+   "url": "https://community.fabric.microsoft.com/t5/Fabric-Updates-Blog/Fabric-Data-Warehouse-at-Ignite-Built-for-AI-era-analytics/ba-p/5414274",
+   "published": "2026-11-20T12:03+00:00",
+   "summary": "If you haven’t already, read Arun Ulag’s Ignite blog post to learn how Microsoft is bringing together databases, analytics, and intelligent applications across Azure and Microsoft Fabric. Our telemetry shows that agentic analytics has arrived. Agents query, investigate, iterate, test, and drill…"
+  },
+  {
+   "source": "Wired",
+   "group": "AI news",
+   "title": "Muse Is Unleashing a World of Pettiness on Instagram",
+   "url": "https://www.wired.com/story/muse-is-unleashing-a-world-of-pettiness-on-instagram/",
+   "published": "2026-11-20T12:00+00:00",
+   "summary": "Meta’s AI assistant can track and unfollow Instagram users who don’t follow you back—and some people are taking full advantage."
+  },
+  {
+   "source": "OpenAI",
+   "group": "AI labs",
+   "title": "Combatting adversarial distillation",
+   "url": "https://openai.com/index/combatting-adversarial-distillation",
+   "published": "2026-11-20T10:00+00:00",
+   "summary": "OpenAI’s layered approach to adversarial distillation combines model training, safeguards, detection, and enforcement to protect against capability extraction."
+  }
+ ]
+}
