@@ -498,7 +498,7 @@
   const getJson = async url => { try { const r = await fetch(url); if (!r.ok) { lookupFailed = true; return null; } return await r.json(); } catch (e) { lookupFailed = true; return null; } };
   const olCover = id => `https://covers.openlibrary.org/b/id/${id}-M.jpg`;
   async function olSearch(title, author, limit) {
-    const q = new URLSearchParams({ title, limit: String(limit), fields: "cover_i" });
+    const q = new URLSearchParams({ title, limit: String(limit), fields: "cover_i", lang: "en" });
     if (author) q.set("author", author);
     const data = await getJson(`https://openlibrary.org/search.json?${q}`);
     return ((data && data.docs) || []).filter(d => d.cover_i).map(d => olCover(d.cover_i));
@@ -514,13 +514,14 @@
   async function findCover(title, author) {
     lookupFailed = false;
     const short = String(title).split(/[:(]/)[0].trim();
-    const first = (await olSearch(title, author, 1))[0] || (short && short !== title ? (await olSearch(short, author, 1))[0] : null);
+    // Several matches, first one that has a cover: the top match often has none.
+    const first = (await olSearch(short || title, author, 10))[0] || (short && short !== title ? (await olSearch(title, author, 10))[0] : null);
     const found = first || (await googleCover(short || title, author));
     return found || (lookupFailed ? null : "");
   }
   async function coverCandidates(title, author) {
     const short = String(title).split(/[:(]/)[0].trim();
-    const list = await olSearch(short || title, author, 8);
+    const list = await olSearch(short || title, author, 12);
     return [...new Set(list)].slice(0, 6);
   }
   let coverQueueRunning = false;
@@ -529,6 +530,11 @@
     if (coverQueueRunning) return;
     coverQueueRunning = true;
     try {
+      // Once per device: look again for books saved as "no cover" by the old, one-result lookup.
+      if (ls() && !ls().getItem("cp-cover-retry-v2")) {
+        for (const s of allSources()) if (s.kind === "book" && s.cover === "") s.cover = null;
+        ls().setItem("cp-cover-retry-v2", "1");
+      }
       for (const src of allSources().filter(s => s.kind === "book" && (s.cover === null || s.cover === undefined))) {
         const url = await findCover(src.title, src.author);
         if (url === null) break;   // offline or blocked: leave the rest for next time
