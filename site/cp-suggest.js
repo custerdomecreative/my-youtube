@@ -55,7 +55,7 @@ Rules:
 - Tag what the passage is about, not the book's general subject.
 - Use ai-parallel only when the historical dynamic plainly maps onto something in AI today.
 - Aaron's note on a passage, if present, shows why he saved it; weigh it.
-Call record_tags once with every passage's index.`;
+Call the record_tags tool once with every passage's index. If you can't use the tool, reply with only the JSON {"passages": [{"i": 0, "tags": ["..."]}]} and nothing else.`;
 
   async function callClaude(key, m, src, batch, vocab) {
     const body = {
@@ -67,7 +67,6 @@ Call record_tags once with every passage's index.`;
           properties: { i: { type: "integer" }, tags: { type: "array", maxItems: 3, items: { type: "string", enum: vocab.map(v => v[0]) } } },
         } } } },
       }],
-      tool_choice: { type: "tool", name: "record_tags" },
       messages: [{ role: "user", content: `Book: ${src.title}${src.author ? " by " + src.author : ""}\n\nPassages (JSON):\n` +
         JSON.stringify(batch.map((h, i) => ({ i, text: h.text.slice(0, MAX_CHARS), ...(h.note ? { note: h.note.slice(0, 600) } : {}) }))) }],
     };
@@ -81,10 +80,17 @@ Call record_tags once with every passage's index.`;
       } catch (e) { throw new Error("Couldn't reach Anthropic. Check your connection and try again."); }
       if (res.ok) {
         const data = await res.json();
-        const call = (data.content || []).find(c => c.type === "tool_use");
+        const call = (data.content || []).find(c => c.type === "tool_use" && c.name === "record_tags");
+        let passages = call && call.input && call.input.passages;
+        if (!Array.isArray(passages)) {   // no tool call: look for the JSON in the text
+          const text = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n");
+          const a = text.indexOf("{"), b = text.lastIndexOf("}");
+          try { passages = JSON.parse(text.slice(a, b + 1)).passages; } catch (e) { passages = null; }
+        }
+        if (!Array.isArray(passages)) throw new Error("Claude's reply couldn't be read. Try again, or try the other model.");
         const allowed = new Set(vocab.map(v => v[0]));
         const out = {};
-        for (const p of (call && call.input && call.input.passages) || []) {
+        for (const p of passages) {
           const h = batch[p.i];
           if (!h || !Array.isArray(p.tags)) continue;
           const tags = [...new Set(p.tags.map(CP.normTag))].filter(t => allowed.has(t) && !h.tags.includes(t)).slice(0, 3);
