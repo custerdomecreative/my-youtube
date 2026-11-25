@@ -12,7 +12,8 @@
   const build = document.querySelector('meta[name="build"]')?.content || "";
   const get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const blockedUntil = () => Number(get(BLOCK_KEY) || 0);
-  const isBlocked = () => blockedUntil() > Date.now();
+  // Commonplace is the healthy alternative to scrolling, so it opts out (<html data-no-block>).
+  const isBlocked = () => !document.documentElement.hasAttribute("data-no-block") && blockedUntil() > Date.now();
   const fmt = t => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const busy = () => document.querySelector(".player iframe, .reader, .pseudo-fs");
 

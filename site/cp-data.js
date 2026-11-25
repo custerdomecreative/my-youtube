@@ -209,6 +209,11 @@
     review[hid] = { ...e, state: "active", due: todayStr(), t: Date.now() };
     dirty.review = true; persist(); scheduleFlush(20000); emit();
   }
+  // Take back the last review action (the toast's Undo). A never-seen highlight comes back as due now.
+  function undoReview(hid, prev) {
+    review[hid] = prev ? { ...prev, t: Date.now() } : { due: todayStr(), interval: 3, state: "active", seen: 0, t: Date.now(), last: "" };
+    dirty.review = true; persist(); scheduleFlush(20000);
+  }
   const reviewedToday = (today = todayStr()) => Object.values(review).filter(e => e.last === today).length;
 
   // Today's picks: due first, then never-seen; favourites weighted up; some randomness,
@@ -430,7 +435,8 @@
   }
 
   // ---------- covers ----------
-  const getJson = async url => { try { const r = await fetch(url); return r.ok ? await r.json() : null; } catch (e) { return null; } };
+  let lookupFailed = false;   // a request failed (offline, blocked): "no cover found" isn't certain then
+  const getJson = async url => { try { const r = await fetch(url); if (!r.ok) { lookupFailed = true; return null; } return await r.json(); } catch (e) { lookupFailed = true; return null; } };
   const olCover = id => `https://covers.openlibrary.org/b/id/${id}-M.jpg`;
   async function olSearch(title, author, limit) {
     const q = new URLSearchParams({ title, limit: String(limit), fields: "cover_i" });
@@ -444,11 +450,14 @@
     const link = data && data.items && data.items[0] && data.items[0].volumeInfo && data.items[0].volumeInfo.imageLinks;
     return link && link.thumbnail ? link.thumbnail.replace(/^http:/, "https:") : null;
   }
-  // One cover URL for a book: Open Library first, Google Books if that has none. "" means none found.
+  // One cover URL for a book: Open Library first, Google Books if that has none.
+  // "" means none exists; null means we couldn't check (try again later).
   async function findCover(title, author) {
+    lookupFailed = false;
     const short = String(title).split(/[:(]/)[0].trim();
     const first = (await olSearch(title, author, 1))[0] || (short && short !== title ? (await olSearch(short, author, 1))[0] : null);
-    return first || (await googleCover(short || title, author)) || "";
+    const found = first || (await googleCover(short || title, author));
+    return found || (lookupFailed ? null : "");
   }
   async function coverCandidates(title, author) {
     const short = String(title).split(/[:(]/)[0].trim();
@@ -463,6 +472,7 @@
     try {
       for (const src of allSources().filter(s => s.kind === "book" && (s.cover === null || s.cover === undefined))) {
         const url = await findCover(src.title, src.author);
+        if (url === null) break;   // offline or blocked: leave the rest for next time
         if (sources[src.id] && (sources[src.id].cover === null || sources[src.id].cover === undefined)) setCover(src.id, url);
       }
     } finally { coverQueueRunning = false; }
@@ -486,7 +496,7 @@
     allSources, getSource, ensureSource, saveSource, makeHighlight, addHighlight, updateHighlight, deleteHighlight, setCover, findHighlight,
     allHighlights, allTags, lastHighlighted, sortedHighlights, hasHighlightData, search,
     // review
-    getReview, reviewAction, restoreToReview, dailyQueue, reviewedToday, pickDaily, nextReview,
+    getReview, reviewAction, undoReview, restoreToReview, dailyQueue, reviewedToday, pickDaily, nextReview,
     // covers
     findCover, coverCandidates, fillCovers,
     // pure helpers (also used by the Kindle importer and tests)

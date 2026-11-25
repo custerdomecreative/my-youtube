@@ -235,3 +235,5 @@ html.blocked body > *:not(.blocked-screen) { display: none !important; }
 .reader h3, .reader h4 { font-family: var(--sans); }
 .reader a { color: var(--ink); text-decoration-color: var(--accent); text-underline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+/* Five section tabs (Videos, Channels, News, AI, Commonplace) must fit at 375px: tighten the gap, never the label. */
+@media (max-width: 430px) { .switch:not(.sub) { gap: 12px; } .switch:not(.sub) a { font-size: 14.5px; } }
