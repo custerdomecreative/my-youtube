@@ -147,3 +147,5 @@ details.more summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .toast .btn { color: var(--bg); border-color: currentColor; margin-left: 8px; min-height: 30px; }
 .book-cover.ph { display: grid; place-items: center; text-align: center; font-family: var(--serif); background: var(--accent-soft); color: var(--ink); border: 1px solid var(--line); overflow: hidden; line-height: 1.15; }
 .clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+.sg-book { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.sg-book summary { cursor: pointer; font-family: var(--serif); font-size: 17px; font-weight: 600; }

@@ -235,9 +235,14 @@
     CP.fillCovers();
     const head = el("div", { class: "row", style: "justify-content:space-between; margin-bottom:14px" },
       el("h2", { class: "section", style: "margin:0", text: "Library" }),
-      el("a", { class: "btn small", href: "#import", text: "Import Kindle" }));
+      el("div", { class: "row" },
+        window.CPSuggest && list.length > 0 && el("button", { class: "btn small" + (CPSuggest.hasPending(null) ? " primary" : ""), type: "button",
+          text: CPSuggest.hasPending(null) ? "Review suggested tags" : "Suggest tags for all",
+          onclick: () => { if (allBox.dataset.open === "suggest") { allBox.replaceChildren(); allBox.dataset.open = ""; render(); } else CPSuggest.panel(null, allBox, render); } }),
+        el("a", { class: "btn small", href: "#import", text: "Import Kindle" })));
+    const allBox = el("div");
     if (!list.length) return el("div", {}, head, emptyState());
-    return el("div", {}, head, el("div", { class: "grid" }, list.map(s =>
+    return el("div", {}, head, allBox, el("div", { class: "grid" }, list.map(s =>
       el("a", { class: "book", href: `#library/${encodeURIComponent(s.id)}` },
         coverEl(s, "book-cover"),
         el("div", { class: "book-title", text: s.title }),
