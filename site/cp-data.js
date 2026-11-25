@@ -535,10 +535,16 @@
         for (const s of allSources()) if (s.kind === "book" && s.cover === "") s.cover = null;
         ls().setItem("cp-cover-retry-v2", "1");
       }
+      // One book failing (Google Books often refuses keyless browser requests) must not hold up the rest:
+      // skip it, leave it for next time, and carry on. Stop only when offline or nothing is getting through.
+      let failures = 0;
       for (const src of allSources().filter(s => s.kind === "book" && (s.cover === null || s.cover === undefined))) {
+        if (typeof navigator !== "undefined" && navigator.onLine === false) break;
         const url = await findCover(src.title, src.author);
-        if (url === null) break;   // offline or blocked: leave the rest for next time
+        if (url === null) { if (++failures >= 5) break; continue; }
+        failures = 0;
         if (sources[src.id] && (sources[src.id].cover === null || sources[src.id].cover === undefined)) setCover(src.id, url);
+        await new Promise(r => setTimeout(r, 250));   // be gentle with Open Library
       }
     } finally { coverQueueRunning = false; }
   }
