@@ -201,6 +201,19 @@
     if (n) { persist(); emit(); scheduleFlush(2500); }
     return n;
   }
+  // Add tags to many highlights in one source with a single save (approved tag suggestions).
+  function bulkTag(sourceId, map) {
+    const src = sources[sourceId];
+    if (!src) return 0;
+    let n = 0;
+    const t = nowIso();
+    for (const h of src.highlights) {
+      const add = (map[h.id] || []).map(normTag).filter(x => x && !h.tags.includes(x));
+      if (add.length) { h.tags = [...h.tags, ...add]; h.updated = t; n++; }
+    }
+    if (n) saveSource(src);
+    return n;
+  }
   function setCover(sourceId, cover) {
     const src = sources[sourceId];
     if (!src) return;
@@ -540,7 +553,7 @@
   return {
     THOUGHTS_ID, DAILY_MAX, hasToken: () => !!token(), init, sync, onChange, onStatus, getStatus, pendingCount,
     // sources and highlights
-    allSources, getSource, ensureSource, saveSource, updateSource, tidyTitles, cleanTitle, cleanAuthor, makeHighlight, addHighlight, updateHighlight, deleteHighlight, setCover, findHighlight,
+    allSources, getSource, ensureSource, saveSource, updateSource, bulkTag, tidyTitles, cleanTitle, cleanAuthor, makeHighlight, addHighlight, updateHighlight, deleteHighlight, setCover, findHighlight,
     allHighlights, allTags, lastHighlighted, sortedHighlights, hasHighlightData, search,
     // review
     getReview, reviewAction, undoReview, restoreToReview, dailyQueue, reviewedToday, pickDaily, nextReview,

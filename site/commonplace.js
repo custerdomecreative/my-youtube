@@ -24,6 +24,9 @@
 
   const ui = { editors: 0, reviewing: false, search: { q: "", tags: new Set(), shown: 40 } };
 
+  // For cp-suggest.js: the same element helper, toasts, and a way to hold off background redraws.
+  window.CPUI = { el: (...a) => el(...a), toast: (...a) => toast(...a), hold: () => { ui.editors++; let done = false; return () => { if (!done) { done = true; ui.editors = Math.max(0, ui.editors - 1); } }; } };
+
   // ---------- toast ----------
   let toastTimer = null;
   function toast(message, undo) {
@@ -250,13 +253,16 @@
         el("div", { class: "row", style: "margin-top:10px" },
           src.kind === "book" && el("button", { class: "btn small", type: "button", text: "Change cover", onclick: () => coverPicker(src, picker) }),
           src.kind !== "thoughts" && el("button", { class: "btn small", type: "button", text: "Edit details", onclick: () => detailsEditor(src, picker) }),
+          window.CPSuggest && src.highlights.length > 0 && el("button", { class: "btn small" + (CPSuggest.hasPending(src.id) ? " primary" : ""), type: "button",
+            text: CPSuggest.hasPending(src.id) ? "Review suggested tags" : "Suggest tags",
+            onclick: () => { if (picker.dataset.open === "suggest") { picker.replaceChildren(); picker.dataset.open = ""; render(); } else CPSuggest.panel(src, picker, render); } }),
           el("a", { class: "btn small", href: `#add?src=${encodeURIComponent(src.id)}`, text: "Add highlight" }),
           src.url && el("a", { class: "btn small", href: src.url, rel: "noreferrer", target: "_blank", text: "Open article" }))));
     return el("div", {}, el("a", { class: "back", href: "#library", text: "← Library" }), head, picker,
       el("div", { class: "stack" }, CP.sortedHighlights(src).map(h => highlightCard(h.id))));
   }
   function detailsEditor(src, box) {
-    if (box.firstChild) return box.replaceChildren();
+    if (box.firstChild) { box.dataset.open = ""; return box.replaceChildren(); }
     const title = el("input", { type: "text", value: src.title, "aria-label": "Title" });
     const author = el("input", { type: "text", value: src.author, "aria-label": "Author" });
     box.replaceChildren(el("div", { class: "panel" },
@@ -272,7 +278,7 @@
     title.focus();
   }
   async function coverPicker(src, box) {
-    if (box.firstChild) return box.replaceChildren();
+    if (box.firstChild) { box.dataset.open = ""; return box.replaceChildren(); }
     const url = el("input", { type: "url", placeholder: "Or paste an image link", "aria-label": "Cover image link" });
     const choose = value => { CP.setCover(src.id, value); toast(value ? "Cover changed" : "Cover removed"); render(); };
     const options = el("div", { class: "cover-pick" }, el("span", { class: "hint", text: "Looking for covers…" }));

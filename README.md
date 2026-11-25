@@ -144,3 +144,23 @@ If you keep the site on your Home Screen, Shortcuts opens links in **Safari**,
 which keeps its own separate storage on iPhone. Enter the sync token there once
 too (open Videos in Safari → Update now) or Commonplace will say it needs sync
 set up.
+
+### Suggested tags (Claude)
+
+On a book's page, **Suggest tags** sends that book's passages (and your notes on
+them) to Claude, which suggests themes from your tag list: power, leadership,
+ambition, institutions, persuasion, corruption, war, geopolitics, middle-east,
+ai, technology, ai-parallel, human-nature, plus any tags you already use. Your
+judgement tags (quotable, writing-craft, essay-idea) are never suggested. You
+review the suggestions, untick any you don't want, and only then are they saved.
+To change the theme list, edit `THEMES` in `site/cp-suggest.js`.
+
+- It needs an Anthropic API key (Claude Console → API keys). Set a monthly
+  spend limit there. The key is pasted into the app once per device (and once in
+  Safari if you use Shortcuts), kept in that browser's storage only, and sent
+  only to Anthropic. It is never synced or published.
+- Haiku is the default (well under a cent for a few hundred passages); Sonnet is
+  sharper and costs about 20 times more. The cost of each run is shown.
+- Results you've paid for are kept until you apply or discard them, even if the
+  page reloads.
+- To switch the feature off, remove `cp-suggest.js` and its `<script>` tag.
