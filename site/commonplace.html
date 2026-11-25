@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" data-no-block>
+<head>
+<meta charset="utf-8">
+<meta name="build" content="__BUILD__">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Commonplace</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Commonplace">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#e9edf1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141a22" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="commonplace.css">
+<script src="toolbar.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <nav class="switch" aria-label="Sections"><a href="./">Videos</a><a href="channels.html">Channels</a><a href="news.html">News</a><a href="./?s=ai">AI</a><a href="commonplace.html" aria-current="page">Commonplace</a></nav>
+  <header>
+    <h1>Commonplace</h1>
+    <div class="updated"><button class="sync-btn" id="sync-status" type="button" title="Sync now"></button></div>
+  </header>
+  <div class="tabs" id="views" role="group" aria-label="View">
+    <button class="tab" data-view="review" aria-pressed="false">Review</button>
+    <button class="tab" data-view="library" aria-pressed="false">Library</button>
+    <button class="tab" data-view="add" aria-pressed="false">Add</button>
+    <button class="tab" data-view="search" aria-pressed="false">Search</button>
+  </div>
+  <main id="main"></main>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</div>
+<script src="cp-data.js"></script>
+<script src="cp-kindle.js"></script>
+<script src="commonplace.js"></script>
+</body>
+</html>
