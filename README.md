@@ -150,7 +150,9 @@ set up.
 On a book's page, **Suggest tags** sends that book's passages (and your notes on
 them) to Claude, which suggests themes from your tag list: power, leadership,
 ambition, institutions, persuasion, corruption, war, geopolitics, middle-east,
-ai, technology, ai-parallel, human-nature, plus any tags you already use. Your
+ai, technology, ai-parallel, human-nature, habits, focus, mastery, career,
+decisions, data, adversity, emotions, mindfulness, stoicism, relationships,
+meaning, running, writing, plus any tags you already use. Your
 judgement tags (quotable, writing-craft, essay-idea) are never suggested. You
 review the suggestions, untick any you don't want, and only then are they saved.
 To change the theme list, edit `THEMES` in `site/cp-suggest.js`.
