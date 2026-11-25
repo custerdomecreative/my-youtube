@@ -26,6 +26,21 @@
     ["technology", "earlier technologies changing society (railways, electricity, nuclear, printing, etc.)"],
     ["ai-parallel", "history that clearly rhymes with something happening in AI now: a disruptive technology, concentration of power, an arms race, regulation catching up, work being displaced"],
     ["human-nature", "moral, psychological or 'this is how people are' passages, often from fiction"],
+    // Living and working well: most of the library (habits, focus, psychology, careers, running).
+    ["habits", "routines, consistency, discipline, small actions repeated"],
+    ["focus", "attention, deep work, distraction, priorities, saying no"],
+    ["mastery", "skill, practice, growth mindset, doing work well"],
+    ["career", "choosing and building a working life"],
+    ["decisions", "judgement, process over outcomes, trade-offs, when to quit"],
+    ["data", "statistics, measurement, evidence, numbers"],
+    ["adversity", "setbacks, failure, hardship and how to respond to them"],
+    ["emotions", "anxiety, anger, happiness, handling feelings"],
+    ["mindfulness", "meditation, presence, stillness"],
+    ["stoicism", "Stoic ideas and the Stoic teachers"],
+    ["relationships", "other people, family, recognition, empathy"],
+    ["meaning", "purpose, identity, what a life is for"],
+    ["running", "running itself"],
+    ["writing", "the practice of writing (not prose Aaron admires: he tags that himself)"],
   ];
   const PERSONAL = new Set(["quotable", "writing-craft", "essay-idea"]);
   const BATCH = 40, MAX_CHARS = 1500;
@@ -45,7 +60,7 @@
     return [...THEMES, ...extra.map(t => [t, "one of Aaron's own tags"])];
   }
 
-  const SYSTEM = vocab => `You tag highlights in Aaron's commonplace book. He reads history, politics and fiction, and writes essays that use history, power and conflict as a lens on AI. Tags help him gather passages by theme when he writes.
+  const SYSTEM = vocab => `You tag highlights in Aaron's commonplace book. He reads history, politics and fiction, and a lot about living and working well (habits, focus, psychology, careers, running). He writes essays that use history, power and conflict as a lens on AI. Tags help him gather passages by theme.
 
 Give each passage the tags that clearly fit, from this list only:
 ${vocab.map(([t, d]) => `- ${t}: ${d}`).join("\n")}
