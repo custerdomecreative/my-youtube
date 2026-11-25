@@ -249,10 +249,27 @@
         el("div", { class: "hint", style: "margin:0", text: [src.author, plural(src.highlights.length, "highlight")].filter(Boolean).join(" · ") }),
         el("div", { class: "row", style: "margin-top:10px" },
           src.kind === "book" && el("button", { class: "btn small", type: "button", text: "Change cover", onclick: () => coverPicker(src, picker) }),
+          src.kind !== "thoughts" && el("button", { class: "btn small", type: "button", text: "Edit details", onclick: () => detailsEditor(src, picker) }),
           el("a", { class: "btn small", href: `#add?src=${encodeURIComponent(src.id)}`, text: "Add highlight" }),
           src.url && el("a", { class: "btn small", href: src.url, rel: "noreferrer", target: "_blank", text: "Open article" }))));
     return el("div", {}, el("a", { class: "back", href: "#library", text: "← Library" }), head, picker,
       el("div", { class: "stack" }, CP.sortedHighlights(src).map(h => highlightCard(h.id))));
+  }
+  function detailsEditor(src, box) {
+    if (box.firstChild) return box.replaceChildren();
+    const title = el("input", { type: "text", value: src.title, "aria-label": "Title" });
+    const author = el("input", { type: "text", value: src.author, "aria-label": "Author" });
+    box.replaceChildren(el("div", { class: "panel" },
+      el("label", { class: "lbl", style: "margin-top:0", text: "Title" }), title,
+      el("label", { class: "lbl", text: "Author" }), author,
+      el("div", { class: "row", style: "margin-top:12px" },
+        el("button", { class: "btn primary small", type: "button", text: "Save", onclick: () => {
+          if (!title.value.trim()) return toast("The title can't be empty.");
+          CP.updateSource(src.id, { title: title.value.trim(), author: author.value.trim() });
+          toast("Saved"); render();
+        } }),
+        el("button", { class: "btn small", type: "button", text: "Cancel", onclick: () => box.replaceChildren() }))));
+    title.focus();
   }
   async function coverPicker(src, box) {
     if (box.firstChild) return box.replaceChildren();

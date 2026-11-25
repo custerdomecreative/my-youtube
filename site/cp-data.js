@@ -57,6 +57,25 @@
     const parts = first.split(/\s+/);
     return parts[parts.length - 1];
   }
+  // Kindle titles often carry file-name and shop clutter: "Jurassic Park_ A Novel - Crichton, Michael",
+  // "Small Things Like These: Shortlisted for the Booker Prize 2022 | &lt;b&gt;An exquisite…&lt;/b&gt;".
+  const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+  const decode = s => String(s || "").replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) =>
+    e[0] === "#" ? String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)) : (ENT[e.toLowerCase()] ?? m));
+  const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const BLURB = /(shortlisted|longlisted|winner of|prize|award|bestsell|best-sell|from the (author|bestselling|number one)|now a (major|netflix)|soon to be a|sunday times|new york times|^\s*a novel\s*$)/i;
+  function cleanAuthor(author) { return decode(decode(author)).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(); }
+  function cleanTitle(title, author) {
+    let t = decode(decode(title)).replace(/<[^>]*>/g, " ");
+    t = t.replace(/_\s+/g, ": ").replace(/_/g, " ");
+    t = t.split(/\s+\|\s+/)[0];
+    const sn = surname(cleanAuthor(author));
+    if (sn) t = t.replace(new RegExp(`\\s+-\\s+[^-]*\\b${escapeRe(sn)}\\b[^-]*$`, "i"), "");
+    const i = t.indexOf(":");
+    if (i > 0 && BLURB.test(t.slice(i + 1))) t = t.slice(0, i);
+    t = t.replace(/\s+/g, " ").replace(/[\s:;,|-]+$/, "").trim();
+    return t || String(title || "").trim();
+  }
   // "The Power Broker" + "Robert A. Caro" -> src_power-broker-caro, so a re-import finds the same book.
   function sourceIdFor(title, author) {
     const t = slug(String(title || "").replace(/^(the|a|an)\s+/i, "")).slice(0, 48).replace(/-+$/, "");
@@ -97,13 +116,13 @@
   const getSource = id => sources[id];
   const hasHighlightData = () => allSources().some(s => s.highlights.length);
 
-  function newSource({ kind = "book", title, author = "", url = null, cover = null }) {
-    return { id: kind === "thoughts" ? THOUGHTS_ID : sourceIdFor(title, author), kind, title, author, cover, url, added: nowIso(), updated: nowIso(), highlights: [], deleted: {} };
+  function newSource({ id, kind = "book", title, author = "", url = null, cover = null }) {
+    return { id: kind === "thoughts" ? THOUGHTS_ID : (id || sourceIdFor(title, author)), kind, title, author, cover, url, added: nowIso(), updated: nowIso(), highlights: [], deleted: {} };
   }
   // The saved source if there is one, else a fresh unsaved one (call saveSource to keep it).
   function ensureSource(spec) {
     if (spec.kind === "thoughts") return sources[THOUGHTS_ID] || newSource({ kind: "thoughts", title: "My thoughts", cover: "" });
-    const id = sourceIdFor(spec.title, spec.author);
+    const id = spec.id || sourceIdFor(spec.title, spec.author);
     return sources[id] || newSource(spec);
   }
   function markDirty(id) { if (!dirty.sources.includes(id)) dirty.sources.push(id); }
@@ -155,6 +174,32 @@
     dirty.review = true;
     saveSource(src);
     scheduleFlush(20000);
+  }
+  // Title and author are only labels: the id never changes, so Kindle re-imports still find the book.
+  function updateSource(sourceId, { title, author }) {
+    const src = sources[sourceId];
+    if (!src) return;
+    const changed = (title && title !== src.title) || (author != null && author !== src.author);
+    if (title) src.title = title;
+    if (author != null) src.author = author;
+    src.titleEdited = true;
+    if (changed && src.kind === "book" && !src.cover) src.cover = null;   // look the cover up again
+    saveSource(src);
+    fillCovers();
+  }
+  // Tidy titles saved before the clean-up existed (or arriving from another device). Hand-edited ones are left alone.
+  function tidyTitles() {
+    let n = 0;
+    for (const src of allSources()) {
+      if (src.kind !== "book" || src.titleEdited) continue;
+      const title = cleanTitle(src.title, src.author), author = cleanAuthor(src.author);
+      if (title === src.title && author === src.author) continue;
+      src.title = title; src.author = author;
+      if (src.cover === "") src.cover = null;
+      src.updated = nowIso(); markDirty(src.id); n++;
+    }
+    if (n) { persist(); emit(); scheduleFlush(2500); }
+    return n;
   }
   function setCover(sourceId, cover) {
     const src = sources[sourceId];
@@ -275,7 +320,7 @@
       via: h.via || "manual", favourite: !!h.favourite, ...(h.edited ? { edited: true } : {}), ...(h.noteEdited ? { noteEdited: true } : {}), created: h.created, updated: h.updated,
     })).sort((a, b) => (a.id < b.id ? -1 : 1));
     const deleted = Object.fromEntries(Object.entries(s.deleted || {}).sort(([a], [b]) => (a < b ? -1 : 1)));
-    return { id: s.id, kind: s.kind, title: s.title, author: s.author || "", cover: s.cover ?? null, url: s.url ?? null, added: s.added, updated: s.updated, highlights: hl, deleted };
+    return { id: s.id, kind: s.kind, title: s.title, author: s.author || "", ...(s.titleEdited ? { titleEdited: true } : {}), cover: s.cover ?? null, url: s.url ?? null, added: s.added, updated: s.updated, highlights: hl, deleted };
   }
   function mergeSource(a, b) {
     const newer = a.updated >= b.updated ? a : b, older = newer === a ? b : a;
@@ -352,6 +397,7 @@
     await Promise.all([worker(), worker(), worker(), worker()]);
     persist();
     if (changed) emit();
+    tidyTitles();
   }
 
   async function pushSource(id, dir) {
@@ -479,6 +525,7 @@
   }
 
   async function init() {
+    tidyTitles();
     if (!token()) return setStatus("setup", "Needs sync set up");
     await sync();
   }
@@ -493,7 +540,7 @@
   return {
     THOUGHTS_ID, DAILY_MAX, hasToken: () => !!token(), init, sync, onChange, onStatus, getStatus, pendingCount,
     // sources and highlights
-    allSources, getSource, ensureSource, saveSource, makeHighlight, addHighlight, updateHighlight, deleteHighlight, setCover, findHighlight,
+    allSources, getSource, ensureSource, saveSource, updateSource, tidyTitles, cleanTitle, cleanAuthor, makeHighlight, addHighlight, updateHighlight, deleteHighlight, setCover, findHighlight,
     allHighlights, allTags, lastHighlighted, sortedHighlights, hasHighlightData, search,
     // review
     getReview, reviewAction, undoReview, restoreToReview, dailyQueue, reviewedToday, pickDaily, nextReview,
