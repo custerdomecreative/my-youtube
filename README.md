@@ -74,3 +74,73 @@ Update button, which also needs "Contents: Read and write" on that repository.
   deploy stamps the commit into `version.json` and the asset URLs, and pages
   reload themselves once when they see a newer version.
 - **Block 1 hr** hides all pages until the time is up, on every synced device.
+
+## Commonplace (highlights and review)
+
+`commonplace.html` is a private, Readwise-style place for highlights from the
+Kindle, physical books, articles and spoken or typed thoughts. It has four
+views: **Review** (the daily set), **Library** (books with covers and their
+highlights), **Add** and **Search**.
+
+**Nothing you highlight or write is ever published.** It lives in the private
+repository `custerdomecreative/my-youtube-state`, in a `commonplace/` folder
+(one file per book or article under `commonplace/sources/`, plus
+`commonplace/review.json`), and in this device's storage so the page opens
+instantly and keeps working offline (changes made offline are sent later). It
+uses the same device-only token as Sync, so a device that has Sync set up
+already has this. A device without one shows "Commonplace needs sync set up"
+with a link to where the token is entered (Videos → Update now).
+
+- **Kindle import:** connect the Kindle to the Mac, open its `documents`
+  folder, copy `My Clippings.txt`, then Library → Import Kindle and choose it.
+  The page shows a preview ("312 highlights in 9 books, 41 new") before saving.
+  Import is safe to repeat: the same passage is never added twice, a passage
+  you extended or trimmed on the Kindle updates the existing highlight, and
+  your own notes, tags and favourites are never overwritten. Something you
+  deleted in the app stays deleted.
+- **Daily Review:** up to 7 highlights a day, due ones first, then ones you
+  haven't seen, favourites a little more often. Keep (next in 2x the interval,
+  at least 7 days), Sooner (half, at least 2 days), Less often (4x, at least 30
+  days) or Discard (never in review again; still in the Library, and "Back in
+  review" brings it back). New highlights start at 3 days. Each action has an
+  Undo for a few seconds. The count for the day is shared between devices.
+- **Covers** come from Open Library (Google Books as a fallback) and are looked
+  up once, then saved. Change one from a book's page.
+- **Block 1 hr** does not cover Commonplace.
+
+### Hands-free thoughts (iPhone Shortcut)
+
+The Shortcut opens the page with the text after a `#`, which never leaves the
+phone (a `?` would be sent to the server). No token goes into a Shortcut: the
+page saves with its own.
+
+1. Shortcuts app → **+** → name it **Commonplace thought**.
+2. Add **Dictate Text**.
+3. Add **URL Encode** (search "encode"); its input is the *Dictated Text*.
+4. Add **Text** and type, with the address of this site (the same as your watch
+   list, ending in `commonplace.html`), then the *URL Encoded Text* variable:
+   `https://custerdomecreative.github.io/my-youtube/commonplace.html#add?kind=thought&text=`
+5. Add **Open URLs** with that Text as its input.
+6. Optional: tap the shortcut's name → **Add to Home Screen**, or say "Hey Siri,
+   Commonplace thought".
+
+The page opens with your words in the box; tap **Save**. They're filed under
+"My thoughts".
+
+### Physical books (iPhone share sheet)
+
+1. Photograph the page. In Photos (or the Camera), press and hold the text, drag
+   to select the passage, and tap **Share**.
+2. One-time setup: Shortcuts → **+** → name it **Add to Commonplace** → tap the
+   **i** at the bottom → turn on **Show in Share Sheet** and set it to accept
+   **Text** only.
+3. Add **URL Encode** (its input is *Shortcut Input*), then **Text**:
+   `https://custerdomecreative.github.io/my-youtube/commonplace.html#add?kind=book&text=`
+   followed by the *URL Encoded Text* variable, then **Open URLs**.
+
+The page opens with the passage filled in and asks which book, and the page.
+
+If you keep the site on your Home Screen, Shortcuts opens links in **Safari**,
+which keeps its own separate storage on iPhone. Enter the sync token there once
+too (open Videos in Safari → Update now) or Commonplace will say it needs sync
+set up.
