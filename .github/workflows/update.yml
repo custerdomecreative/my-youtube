@@ -81,7 +81,7 @@ jobs:
         # Asset URLs get ?v=<commit> so phones fetch new code when it changes.
         run: |
           V="${GITHUB_SHA::8}"
-          sed -i -E "s/(href|src)=\"(style\.css|player\.js|sync\.js|toolbar\.js|updater\.js|search\.js|search-config\.js|commonplace\.css|commonplace\.js|cp-data\.js|cp-kindle\.js)\"/\1=\"\2?v=$V\"/g; s/__BUILD__/$V/" site/*.html
+          sed -i -E "s/(href|src)=\"(style\.css|player\.js|sync\.js|toolbar\.js|updater\.js|search\.js|search-config\.js|commonplace\.css|commonplace\.js|cp-data\.js|cp-kindle\.js|cp-suggest\.js)\"/\1=\"\2?v=$V\"/g; s/__BUILD__/$V/" site/*.html
           printf '{"build":"%s"}' "$V" > site/version.json
       - uses: actions/upload-pages-artifact@v3
         with:

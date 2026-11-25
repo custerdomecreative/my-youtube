@@ -105,7 +105,7 @@
     const books = new Map();
     for (const e of entries) {
       const id = lib.sourceIdFor(e.title, e.author);
-      if (!books.has(id)) books.set(id, { id, title: e.title, author: e.author, entries: [] });
+      if (!books.has(id)) books.set(id, { id, title: lib.cleanTitle(e.title, e.author), author: lib.cleanAuthor(e.author), entries: [] });
       books.get(id).entries.push(e);
     }
     const out = [];
@@ -147,7 +147,7 @@
         const ex = existing.find(h => h.id === id || lib.norm(h.text) === nt);
         if (ex) {
           // A Kindle note fills an empty note, but never replaces one Aaron has written or edited.
-          if (item.note && !ex.note && !ex.noteEdited) p.noteFill.push({ id: ex.id, note: item.note });
+          if (item.note && item.note !== ex.note && !ex.noteEdited) p.noteFill.push({ id: ex.id, note: item.note });
           else p.unchanged++;
           continue;
         }
@@ -174,7 +174,7 @@
     let saved = 0;
     for (const p of plan.books) {
       if (!p.add.length && !p.edit.length && !p.noteFill.length) continue;
-      const src = lib.ensureSource({ kind: "book", title: p.book.title, author: p.book.author });
+      const src = lib.ensureSource({ id: p.book.id, kind: "book", title: p.book.title, author: p.book.author });
       for (const { id, item } of p.add) {
         if (src.highlights.some(h => h.id === id)) continue;
         src.highlights.push(lib.makeHighlight({ id, text: item.text, note: item.note, location: item.location, page: item.page, via: "kindle", created: item.created || undefined }));
@@ -188,7 +188,7 @@
       }
       for (const { id, note } of p.noteFill) {
         const h = src.highlights.find(x => x.id === id);
-        if (h && !h.note) { h.note = note; h.updated = new Date().toISOString(); saved++; }
+        if (h && !h.noteEdited) { h.note = note; h.updated = new Date().toISOString(); saved++; }
       }
       lib.saveSource(src);
     }
