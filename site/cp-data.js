@@ -137,6 +137,7 @@
     const src = sources[sourceId], h = src && src.highlights.find(x => x.id === hid);
     if (!h) return null;
     if ("text" in patch && patch.text !== h.text) h.edited = true;
+    if ("note" in patch && patch.note !== h.note) h.noteEdited = true;   // so a Kindle re-import never refills or replaces it
     Object.assign(h, patch);
     if ("tags" in patch) h.tags = patch.tags.map(normTag).filter(Boolean);
     h.updated = nowIso();
@@ -266,7 +267,7 @@
   function canonSource(s) {
     const hl = s.highlights.map(h => ({
       id: h.id, text: h.text, note: h.note || "", tags: h.tags || [], location: h.location ?? null, page: h.page ?? null,
-      via: h.via || "manual", favourite: !!h.favourite, ...(h.edited ? { edited: true } : {}), created: h.created, updated: h.updated,
+      via: h.via || "manual", favourite: !!h.favourite, ...(h.edited ? { edited: true } : {}), ...(h.noteEdited ? { noteEdited: true } : {}), created: h.created, updated: h.updated,
     })).sort((a, b) => (a.id < b.id ? -1 : 1));
     const deleted = Object.fromEntries(Object.entries(s.deleted || {}).sort(([a], [b]) => (a < b ? -1 : 1)));
     return { id: s.id, kind: s.kind, title: s.title, author: s.author || "", cover: s.cover ?? null, url: s.url ?? null, added: s.added, updated: s.updated, highlights: hl, deleted };
@@ -482,7 +483,7 @@
   return {
     THOUGHTS_ID, DAILY_MAX, hasToken: () => !!token(), init, sync, onChange, onStatus, getStatus, pendingCount,
     // sources and highlights
-    allSources, getSource, ensureSource, saveSource, addHighlight, updateHighlight, deleteHighlight, setCover, findHighlight,
+    allSources, getSource, ensureSource, saveSource, makeHighlight, addHighlight, updateHighlight, deleteHighlight, setCover, findHighlight,
     allHighlights, allTags, lastHighlighted, sortedHighlights, hasHighlightData, search,
     // review
     getReview, reviewAction, restoreToReview, dailyQueue, reviewedToday, pickDaily, nextReview,
