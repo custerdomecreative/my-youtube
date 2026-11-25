@@ -73,7 +73,7 @@
         loc = [a, b];
       }
       entries.push({
-        title, author, type: /note/i.test(kind) ? "note" : "highlight", text: body,
+        title, author, type: /note/i.test(kind) ? "note" : "highlight", text: body, seq: entries.length,
         page: pageM ? (/^\d+$/.test(pageM[1]) ? +pageM[1] : pageM[1]) : null, loc,
         date: parseDate((meta.match(/Added on\s+(.+?)\s*$/i) || [])[1]),
       });
@@ -120,7 +120,11 @@
       for (const n of book.entries.filter(x => x.type === "note")) {
         let target = null;
         if (n.loc) target = kept.find(h => h.loc && n.loc[0] >= h.loc[0] && n.loc[0] <= h.loc[1] + 1);
-        else if (n.page != null) { const same = kept.filter(h => !h.loc && h.page === n.page); if (same.length === 1) target = same[0]; }
+        else if (n.page != null) {
+          // Page only: the Kindle writes a note straight after its highlight, so take the nearest one before it.
+          const same = kept.filter(h => !h.loc && h.page === n.page);
+          target = same.filter(h => h.seq < n.seq).sort((a, b) => b.seq - a.seq)[0] || (same.length === 1 ? same[0] : null);
+        }
         if (target) target.note = n.text;
         else loose.set(n.loc ? n.loc.join("-") : lib.norm(n.text), n);   // a note whose highlight was deleted; newest wins
       }
@@ -131,11 +135,24 @@
     return out;
   }
 
+  // "Mindset - Updated Edition: Changing…" and "Mindset" by the same author are the same book.
+  function bookKey(title, author, lib) {
+    const t = lib.norm(lib.cleanTitle(title, author).split(/[:(]/)[0]).replace(/\b(\d+(st|nd|rd|th)|updated|revised|anniversary)\s+edition\b/g, " ")
+      .replace(/^(the|a|an)\s+/, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const a = lib.norm(lib.cleanAuthor(author)).split(/;|&|,| and /)[0].trim().split(" ").pop() || "";
+    return t + "|" + a;
+  }
+
   // Compare with what's already saved. Nothing is written here.
   function planImport(books, lib) {
     const plan = { books: [], totals: { highlights: 0, books: books.length, new: 0, edited: 0, notes: 0, unchanged: 0, removed: 0 } };
     for (const book of books) {
-      const src = lib.getSource(book.id);
+      let src = lib.getSource(book.id);
+      if (!src) {   // the same book saved under a differently worded title (another export, another edition)
+        const key = bookKey(book.title, book.author, lib);
+        const twin = lib.allSources().find(s => s.kind === "book" && bookKey(s.title, s.author, lib) === key);
+        if (twin) { book.id = twin.id; src = twin; }
+      }
       const existing = src ? src.highlights : [];
       const claimed = new Set();
       const p = { book, add: [], edit: [], noteFill: [], unchanged: 0 };
