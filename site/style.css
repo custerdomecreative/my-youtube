@@ -186,6 +186,7 @@ html.blocked body > *:not(.blocked-screen) { display: none !important; }
 .blocked-screen h1 { margin: 8px 0 10px; font-size: 34px; }
 .blocked-screen p { color: var(--muted); margin: 4px 0; font-size: 16px; }
 .blocked-icon { font-size: 44px; }
+.blocked-screen a { color: var(--ink); font-weight: 600; }
 /* Resume marker on thumbnails */
 .player .resume-label {
   position: absolute; left: 10px; bottom: 14px; padding: 3px 8px; border-radius: 6px;

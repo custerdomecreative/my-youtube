@@ -62,7 +62,7 @@
     <h1>News</h1>
     <div class="updated" id="updated"></div>
   </header>
-  <nav class="switch sub" id="ai-switch" aria-label="AI" hidden><a href="./?s=ai">Videos</a><a href="news.html?s=ai" aria-current="page">News</a></nav>
+  <nav class="switch sub" id="ai-switch" aria-label="AI" hidden><a href="watch.html?s=ai">Videos</a><a href="news.html?s=ai" aria-current="page">News</a></nav>
 
   <section class="unlock" id="unlock" hidden>
     <p id="unlock-msg">Enter your news password. You'll only need to do this once on each device.</p>
@@ -252,6 +252,7 @@
     const node = el("article", { className: "card story" }, [
       top, el("div", { className: "story-actions" }, [readBtn, laterBtn, doneBtn]),
     ]);
+    node.dataset.id = s.id;
 
     let reader = null;
     if (s.text) readBtn.addEventListener("click", () => {
@@ -356,6 +357,18 @@
     $("app").hidden = false;
     buildSourceMenu();
     render();
+    openWanted();
+  }
+  // The front page links to a story as news.html?story=<id>: open it here, once.
+  function openWanted() {
+    const id = new URLSearchParams(location.search).get("story");
+    if (!id) return;
+    history.replaceState(null, "", location.pathname + (SECTION ? "?s=ai" : ""));
+    const node = document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    if (!node) return;
+    node.scrollIntoView();
+    const btn = node.querySelector(".story-actions > :first-child");
+    if (btn && btn.tagName === "BUTTON") btn.click();
   }
 
   function refreshFromStorage() {

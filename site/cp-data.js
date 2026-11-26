@@ -22,6 +22,7 @@
   const DAILY_MAX = 7;
   const THOUGHTS_ID = "src_my-thoughts";
   const TODAY = "_today";   // key in review.json for the day's shared set
+  const NOW_READING = "_nowReading";   // key in review.json for the pinned book: { sourceId | null, t }
 
   // ---------- small helpers ----------
   const ls = () => { try { return typeof localStorage !== "undefined" ? localStorage : null; } catch (e) { return null; } };
@@ -316,6 +317,28 @@
     const isDone = id => review[id] && review[id].last === today;
     return { pending: ids.filter(id => !isDone(id)), done: ids.filter(isDone).length };
   }
+  // ---------- now reading ----------
+  // The front page's "Now reading": a pinned book if there is one, else the book whose latest highlight is newest.
+  // The pin lives in review.json under a reserved key and merges like any review entry (the later change wins),
+  // so it follows you between devices. Unpinning is saved as { sourceId: null } so it syncs too.
+  const pinnedSourceId = () => { const p = review[NOW_READING]; return p && p.sourceId && sources[p.sourceId] ? p.sourceId : null; };
+  function setPin(sourceId) {
+    review[NOW_READING] = { sourceId, t: Date.now() };
+    dirty.review = true; persist(); scheduleFlush(5000); emit();
+  }
+  const pinNowReading = sourceId => { if (sources[sourceId]) setPin(sourceId); };
+  const unpinNowReading = () => { if (review[NOW_READING]) setPin(null); };
+  function nowReading() {
+    const pinned = pinnedSourceId();
+    if (pinned) return { src: sources[pinned], pinned: true };
+    let best = null, bestAt = "";
+    for (const src of allSources()) {
+      if (src.kind !== "book") continue;
+      for (const h of src.highlights) if (h.created > bestAt) { bestAt = h.created; best = src; }
+    }
+    return best ? { src: best, pinned: false } : null;
+  }
+
   // A repeatable random sequence for a given day.
   function seeded(str) {
     let a = parseInt(hash("daily:" + str).slice(-8), 16) >>> 0;
@@ -589,6 +612,8 @@
     allHighlights, allTags, lastHighlighted, sortedHighlights, hasHighlightData, search,
     // review
     getReview, reviewAction, undoReview, restoreToReview, dailyQueue, reviewedToday, pickDaily, nextReview,
+    // front page
+    nowReading, pinnedSourceId, pinNowReading, unpinNowReading, seeded,
     // covers
     findCover, coverCandidates, fillCovers,
     // pure helpers (also used by the Kindle importer and tests)
