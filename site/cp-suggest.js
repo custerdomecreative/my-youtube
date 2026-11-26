@@ -88,6 +88,11 @@ Call the record_tags tool once with every passage's index. If you can't use the 
       messages: [{ role: "user", content: `Book: ${src.title}${src.author ? " by " + src.author : ""}\n\nPassages (JSON):\n` +
         JSON.stringify(batch.map((h, i) => ({ i, text: h.text.slice(0, MAX_CHARS), ...(h.note ? { note: h.note.slice(0, 600) } : {}) }))) }],
     };
+    return readTool(await request(key, body), "record_tags", "passages", batch, vocab);
+  }
+
+  // One Messages API call, with a couple of retries for busy/overloaded responses.
+  async function request(key, body) {
     for (let attempt = 0; ; attempt++) {
       let res;
       try {
@@ -96,31 +101,53 @@ Call the record_tags tool once with every passage's index. If you can't use the 
           headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         });
       } catch (e) { throw new Error("Couldn't reach Anthropic. Check your connection and try again."); }
-      if (res.ok) {
-        const data = await res.json();
-        const call = (data.content || []).find(c => c.type === "tool_use" && c.name === "record_tags");
-        let passages = call && call.input && call.input.passages;
-        if (!Array.isArray(passages)) {   // no tool call: look for the JSON in the text
-          const text = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n");
-          const a = text.indexOf("{"), b = text.lastIndexOf("}");
-          try { passages = JSON.parse(text.slice(a, b + 1)).passages; } catch (e) { passages = null; }
-        }
-        if (!Array.isArray(passages)) throw new Error("Claude's reply couldn't be read. Try again, or try the other model.");
-        const allowed = new Set(vocab.map(v => v[0]));
-        const out = {};
-        for (const p of passages) {
-          const h = batch[p.i];
-          if (!h || !Array.isArray(p.tags)) continue;
-          const tags = [...new Set(p.tags.map(CP.normTag))].filter(t => allowed.has(t) && !h.tags.includes(t)).slice(0, 3);
-          if (tags.length) out[h.id] = tags;
-        }
-        return { out, usage: data.usage || {} };
-      }
+      if (res.ok) return res.json();
       const msg = await res.json().then(j => (j.error && j.error.message) || "", () => "");
       if (res.status === 401 || res.status === 403) { const e = new Error("Anthropic didn't accept that API key."); e.badKey = true; throw e; }
       if ((res.status === 429 || res.status >= 500) && attempt < 2) { await new Promise(r => setTimeout(r, 6000 * (attempt + 1))); continue; }
       throw new Error(msg ? `Anthropic said: ${msg}` : `Anthropic returned an error (${res.status}).`);
     }
+  }
+  // The tool call's list (or the same JSON written as text, if the model answered that way).
+  function toolList(data, tool, field) {
+    const call = (data.content || []).find(c => c.type === "tool_use" && c.name === tool);
+    let list = call && call.input && call.input[field];
+    if (!Array.isArray(list)) {
+      const text = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n");
+      try { list = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1))[field]; } catch (e) { list = null; }
+    }
+    if (!Array.isArray(list)) throw new Error("Claude's reply couldn't be read. Try again, or try the other model.");
+    return list;
+  }
+  function readTool(data, tool, field, batch, vocab) {
+    const allowed = new Set(vocab.map(v => v[0]));
+    const out = {};
+    for (const p of toolList(data, tool, field)) {
+      const h = batch[p.i];
+      if (!h || !Array.isArray(p.tags)) continue;
+      const tags = [...new Set(p.tags.map(CP.normTag))].filter(t => allowed.has(t) && !h.tags.includes(t)).slice(0, 3);
+      if (tags.length) out[h.id] = tags;
+    }
+    return { out, usage: data.usage || {} };
+  }
+
+  // Notes typed on the Kindle's keyboard: fix spelling and shorthand, keep Aaron's words. Returns tidied texts in order.
+  const TIDY = `These are quick notes Aaron typed on a Kindle's on-screen keyboard while reading, so they're full of typos. For each note, fix spelling, typos, spacing, capitalisation and punctuation, and expand shorthand only when it's unambiguous (w → with, bc → because). Keep his words, meaning, tone and length: don't add ideas, don't explain, don't make it formal and don't finish his sentences. Use the book and the highlighted passage only to work out names and words he meant. Leave anything you can't work out as he typed it. Call record_notes once with every note's index.`;
+  async function tidyNotes(notes) {
+    const key = get(KEY);
+    if (!key) throw new Error("No Anthropic key on this device.");
+    const out = notes.map(n => n.note);
+    for (let i = 0; i < notes.length; i += 40) {
+      const batch = notes.slice(i, i + 40);
+      const data = await request(key, {
+        model: model(), max_tokens: 4096, system: TIDY,
+        tools: [{ name: "record_notes", description: "Record the tidied notes.", input_schema: { type: "object", required: ["notes"], properties: { notes: { type: "array", items: {
+          type: "object", required: ["i", "text"], properties: { i: { type: "integer" }, text: { type: "string" } } } } } } }],
+        messages: [{ role: "user", content: "Notes (JSON):\n" + JSON.stringify(batch.map((n, j) => ({ i: j, book: n.book, passage: (n.passage || "").slice(0, 600), note: n.note }))) }],
+      });
+      for (const r of toolList(data, "record_notes", "notes")) if (batch[r.i] && typeof r.text === "string" && r.text.trim()) out[i + r.i] = r.text.trim();
+    }
+    return out;
   }
 
   // The panel: key entry, options, a run, then review and apply. `scope` is one source, or null for every book.
@@ -304,5 +331,5 @@ Call the record_tags tool once with every passage's index. If you can't use the 
     setupView();
   }
 
-  window.CPSuggest = { panel, hasPending };
+  window.CPSuggest = { panel, hasPending, tidyNotes, hasKey: () => !!get(KEY) };
 })();

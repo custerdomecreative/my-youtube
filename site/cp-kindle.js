@@ -164,7 +164,8 @@
         const ex = existing.find(h => h.id === id || lib.norm(h.text) === nt);
         if (ex) {
           // A Kindle note fills an empty note, but never replaces one Aaron has written or edited.
-          if (item.note && item.note !== ex.note && !ex.noteEdited) p.noteFill.push({ id: ex.id, note: item.note });
+          // Compare with the note as typed on the Kindle (a tidied note differs from it on purpose).
+          if (item.note && item.note !== (ex.noteOriginal || ex.note) && !ex.noteEdited) p.noteFill.push({ id: ex.id, note: item.note });
           else p.unchanged++;
           continue;
         }
@@ -194,23 +195,37 @@
       const src = lib.ensureSource({ id: p.book.id, kind: "book", title: p.book.title, author: p.book.author });
       for (const { id, item } of p.add) {
         if (src.highlights.some(h => h.id === id)) continue;
-        src.highlights.push(lib.makeHighlight({ id, text: item.text, note: item.note, location: item.location, page: item.page, via: "kindle", created: item.created || undefined }));
+        src.highlights.push(lib.makeHighlight({ id, text: item.text, note: item.note, noteOriginal: item.noteOriginal, location: item.location, page: item.page, via: "kindle", created: item.created || undefined }));
         saved++;
       }
       for (const { id, item } of p.edit) {
         const h = src.highlights.find(x => x.id === id);
         if (!h) continue;
-        h.text = item.text; h.location = item.location; h.page = item.page; if (item.note && !h.note) h.note = item.note;
+        h.text = item.text; h.location = item.location; h.page = item.page; if (item.note && !h.note) { h.note = item.note; if (item.noteOriginal) h.noteOriginal = item.noteOriginal; }
         h.updated = new Date().toISOString(); saved++;
       }
-      for (const { id, note } of p.noteFill) {
+      for (const { id, note, noteOriginal } of p.noteFill) {
         const h = src.highlights.find(x => x.id === id);
-        if (h && !h.noteEdited) { h.note = note; h.updated = new Date().toISOString(); saved++; }
+        if (h && !h.noteEdited) { h.note = note; if (noteOriginal) h.noteOriginal = noteOriginal; else delete h.noteOriginal; h.updated = new Date().toISOString(); saved++; }
       }
       lib.saveSource(src);
     }
     return saved;
   }
 
-  return { parseClippings, buildBooks, planImport, applyImport, parseDate, splitTitle };
+  // The Kindle-typed notes this import would save, each with its passage and a way to swap in a tidied version.
+  function kindleNotes(plan, lib) {
+    const out = [];
+    const add = (book, passage, holder) => out.push({ book, passage, note: holder.note,
+      set: v => { holder.noteOriginal = holder.note; holder.note = v; } });
+    for (const p of plan.books) {
+      for (const a of p.add) if (a.item.note) add(p.book.title, a.item.text, a.item);
+      for (const e of p.edit) if (e.item.note) add(p.book.title, e.item.text, e.item);
+      const src = lib.getSource(p.book.id);
+      for (const n of p.noteFill) { const h = src && src.highlights.find(x => x.id === n.id); add(p.book.title, h ? h.text : "", n); }
+    }
+    return out;
+  }
+
+  return { kindleNotes, parseClippings, buildBooks, planImport, applyImport, parseDate, splitTitle };
 });

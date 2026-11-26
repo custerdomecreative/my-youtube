@@ -141,6 +141,7 @@
       id: f.id || randomId(), text: f.text, note: f.note || "", tags: (f.tags || []).map(normTag).filter(Boolean),
       location: f.location || null, page: f.page == null ? null : f.page, via: f.via || "manual",
       favourite: !!f.favourite, created: f.created || t, updated: t,
+      ...(f.noteOriginal ? { noteOriginal: f.noteOriginal } : {}),   // a Kindle-typed note as typed, before tidying
     };
   }
   function addHighlight(src, fields) {
@@ -330,7 +331,7 @@
   function canonSource(s) {
     const hl = s.highlights.map(h => ({
       id: h.id, text: h.text, note: h.note || "", tags: h.tags || [], location: h.location ?? null, page: h.page ?? null,
-      via: h.via || "manual", favourite: !!h.favourite, ...(h.edited ? { edited: true } : {}), ...(h.noteEdited ? { noteEdited: true } : {}), created: h.created, updated: h.updated,
+      via: h.via || "manual", favourite: !!h.favourite, ...(h.edited ? { edited: true } : {}), ...(h.noteEdited ? { noteEdited: true } : {}), ...(h.noteOriginal ? { noteOriginal: h.noteOriginal } : {}), created: h.created, updated: h.updated,
     })).sort((a, b) => (a.id < b.id ? -1 : 1));
     const deleted = Object.fromEntries(Object.entries(s.deleted || {}).sort(([a], [b]) => (a < b ? -1 : 1)));
     return { id: s.id, kind: s.kind, title: s.title, author: s.author || "", ...(s.titleEdited ? { titleEdited: true } : {}), cover: s.cover ?? null, url: s.url ?? null, added: s.added, updated: s.updated, highlights: hl, deleted };
