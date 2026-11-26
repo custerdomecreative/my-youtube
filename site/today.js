@@ -164,7 +164,6 @@
   function renderCommonplace() { renderLead(); renderLibrary(); renderAiDesk(); }
 
   // ---------- News ----------
-  const EDITION_HOURS = 24;
   async function loadStories(prefix) {
     const raw = load("news-key-v1", null);
     if (!raw) return { locked: true };
@@ -177,34 +176,19 @@
       return { stories: JSON.parse(new TextDecoder().decode(plain)).stories || [] };
     } catch (e) { return { error: true }; }
   }
-  // Stories from the last day that you haven't read or saved for later, newest first.
-  function recent(stories, laterKey) {
-    const read = new Set(load("news-read-v1", [])), later = new Set(load(laterKey, []).map(s => s.id));
-    return stories
-      .filter(s => !read.has(s.id) && !later.has(s.id) && (!s.published || Date.now() - new Date(s.published) < EDITION_HOURS * 3600000))
-      .sort((a, b) => (a.published < b.published ? 1 : -1));
-  }
-  // Today's paper leans towards actual news: RTÉ, BBC and the NYT make up the paper, plus at most one rugby or
-  // football story from BBC Sport and one from VGC. The Verge and the rest of the sport (cricket, golf, ...) stay in
-  // All stories. Both extras are newest-first picks, so a quiet day simply has fewer.
-  const NEWS_SOURCES = new Set(["RTÉ News", "BBC World", "NYT"]);
-  const WANTED_SPORT = /\b(rugby|six nations|munster|leinster|ulster|connacht|urc|champions cup|british and irish lions|all blacks|springboks|football|premier league|champions league|europa league|fa cup|league cup|carabao cup|world cup|league of ireland|women's super league|arsenal|aston villa|celtic|chelsea|everton|liverpool|manchester (city|united)|man (city|utd|united)|newcastle united|tottenham|spurs|west ham)\b/i;
-  const OTHER_SPORT = /\b(cricket|ashes|test match|ipl|golf|tennis|f1|formula (1|one)|snooker|darts|boxing|ufc|cycling|athletics|nfl|nba|mlb|nhl)\b/i;
-  const wantedSport = s => { const t = `${s.title} ${s.summary || ""}`; return WANTED_SPORT.test(t) && !(OTHER_SPORT.test(t) && !/\b(rugby|football)\b/i.test(t)); };
-  function todaysPaper(stories, laterKey) {
-    const list = recent(stories, laterKey);
-    const news = list.filter(s => NEWS_SOURCES.has(s.source));
-    const sport = list.find(s => s.source === "BBC Sport" && wantedSport(s));
-    const games = list.find(s => s.source === "VGC");
-    return [...news, ...[sport, games].filter(Boolean)].sort((a, b) => (a.published < b.published ? 1 : -1));
-  }
+  // Which stories are in today's paper lives in paper.js, shared with the News page.
+  const readSet = () => new Set(load("news-read-v1", []));
+  const laterIds = key => new Set(load(key, []).map(s => s.id));
+  const recent = (stories, laterKey) => Paper.recent(stories, readSet(), laterIds(laterKey));
+  const todaysPaper = (stories, laterKey) => Paper.todaysPaper(stories, readSet(), laterIds(laterKey));
+  const NEWS_SOURCES = Paper.NEWS_SOURCES;
   function minutesToRead(s) {
     if (!Array.isArray(s.text)) return 0;
     const words = s.text.reduce((n, p) => n + (typeof p === "string" ? p
       : Array.isArray(p) ? p.map(r => r[0]).join("") : "").split(/\s+/).filter(Boolean).length, 0);
     return words ? Math.max(1, Math.round(words / 230)) : 0;
   }
-  const storyHref = (s, ai) => (s.text ? `news.html?${ai ? "s=ai&" : ""}story=${encodeURIComponent(s.id)}` : s.link);
+  const storyHref = (s, ai) => (s.text ? `${ai ? "ai.html" : "news.html"}?story=${encodeURIComponent(s.id)}` : s.link);
   const storyAttrs = s => (s.text ? {} : { target: "_blank", rel: "noopener" });
   const sourceLine = s => [s.source, minutesToRead(s) ? `${minutesToRead(s)} min read` : ""].filter(Boolean).join(" · ");
 
@@ -265,11 +249,11 @@
       const watched = new Set(load("watched-v1", [])), later = new Set(load("ai-later-v1", []).map(v => v.id));
       const v = aiVideos.find(x => !watched.has(x.id) && !later.has(x.id));
       if (v) items.push(el("article", {}, kicker(`Video · ${v.channel}`, "small"),
-        el("a", { class: "ai-video", href: `watch.html?s=ai&v=${encodeURIComponent(v.id)}` }, el("img", { class: "thumb small", src: v.thumbnail, alt: "", loading: "lazy" }),
+        el("a", { class: "ai-video", href: `ai.html?v=${encodeURIComponent(v.id)}` }, el("img", { class: "thumb small", src: v.thumbnail, alt: "", loading: "lazy" }),
           el("span", { class: "h", text: v.title }))));
     }
     box.hidden = !items.length;
-    box.replaceChildren(...(items.length ? [kicker("The AI desk"), el("div", { class: "ai-items" }, items)] : []));
+    box.replaceChildren(...(items.length ? [el("div", { class: "watch-head" }, kicker("The AI desk"), el("a", { href: "ai.html", text: "Open the AI desk →" })), el("div", { class: "ai-items" }, items)] : []));
   }
 
   // ---------- Watch ----------

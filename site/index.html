@@ -15,8 +15,8 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
 <script>
-  // The AI pages used to live at ./?s=ai; they are at watch.html?s=ai until the AI desk replaces them.
-  if (new URLSearchParams(location.search).get("s") === "ai") location.replace("watch.html" + location.search + location.hash);
+  // The AI pages used to live at ./?s=ai; they are now the AI desk.
+  if (new URLSearchParams(location.search).get("s") === "ai") location.replace("ai.html");
 </script>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="today.css">
@@ -37,6 +37,7 @@
   <header class="today-meta"><div class="updated" id="updated"></div></header>
 </main>
 <script src="cp-data.js"></script>
+<script src="paper.js"></script>
 <script src="today.js"></script>
 <script src="updater.js"></script>
 </body>

@@ -98,7 +98,7 @@
     today: { label: "Today", tab: "Today", href: "./", icon: "M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" },
     book: { label: "Commonplace Book", tab: "Book", href: "commonplace.html", icon: "M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5zM4 5.5v16" },
     news: { label: "News", tab: "News", href: "news.html", icon: "M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5" },
-    ai: { label: "AI", tab: "AI", href: "watch.html?s=ai", icon: "M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3M6 6h12v12H6zM10 10h4v4h-4z" },
+    ai: { label: "AI", tab: "AI", href: "ai.html", icon: "M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3M6 6h12v12H6zM10 10h4v4h-4z" },
     watch: { label: "Watch", tab: "Watch", href: "watch.html", icon: "M3 6h18v12H3zM10 9.5v5l4.5-2.5z" },
   };
   const DESKTOP_ORDER = ["today", "book", "news", "ai", "watch"];
@@ -106,12 +106,12 @@
 
   function currentSection() {
     const page = location.pathname.split("/").pop();
-    const ai = new URLSearchParams(location.search).get("s") === "ai";
     if (page === "commonplace.html") return "book";
     if (page === "today.html" || page === "index.html" || page === "") return "today";
-    if (page === "news.html") return ai ? "ai" : "news";
+    if (page === "news.html") return "news";
+    if (page === "ai.html") return "ai";
     if (page === "channels.html") return "watch";
-    return ai ? "ai" : "watch";
+    return "watch";
   }
 
   function h(tag, props = {}, html) {

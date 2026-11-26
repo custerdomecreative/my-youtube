@@ -13,6 +13,11 @@
 <meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
+<script>
+  // The AI pages moved to the AI desk (ai.html); old watch.html?s=ai links go there, keeping a video link.
+  { const p = new URLSearchParams(location.search);
+    if (p.get("s") === "ai") location.replace("ai.html" + (p.get("v") ? `?v=${encodeURIComponent(p.get("v"))}` : "#videos")); }
+</script>
 <link rel="stylesheet" href="style.css">
 <script src="sync.js"></script>
 <script src="toolbar.js"></script>
@@ -23,8 +28,7 @@
     <h1>Watch</h1>
     <div class="updated" id="updated"></div>
   </header>
-  <nav class="switch sub" hidden id="watch-switch" aria-label="Watch"><a href="watch.html" aria-current="page">Watch list</a><a href="channels.html">Channels</a></nav>
-  <nav class="switch sub" id="ai-switch" aria-label="AI" hidden><a href="watch.html?s=ai" aria-current="page">Videos</a><a href="news.html?s=ai">News</a></nav>
+  <nav class="switch sub" id="watch-switch" aria-label="Watch"><a href="watch.html" aria-current="page">Watch list</a><a href="channels.html">Channels</a></nav>
   <div class="toolbar">
     <div class="tabs" role="group" aria-label="View">
       <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="count-new"></span></button>
@@ -42,18 +46,8 @@
 
 <script src="player.js"></script>
 <script>
-  // Everything here is stored on this device only. The AI section (watch.html?s=ai)
-  // shares watched ticks with Videos but keeps its own Later list and filter.
-  // SECTION comes from player.js.
-  const PREFIX = SECTION ? `${SECTION}-` : "";
-  const KEYS = { watched: "watched-v1", later: `${PREFIX}later-v1`, channel: `${PREFIX}channel-v1` };
-  if (SECTION) {
-    document.title = "AI · The Margin";
-    document.querySelector("header h1").textContent = "AI";
-    document.getElementById("ai-switch").hidden = false;
-  } else {
-    document.getElementById("watch-switch").hidden = false;
-  }
+  // Everything here is stored on this device only. (The AI videos live on the AI desk, ai.html.)
+  const KEYS = { watched: "watched-v1", later: "later-v1", channel: "channel-v1" };
   const load = (key, fallback) => {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
   };
@@ -255,7 +249,7 @@
     if (play) play.click();
   }
 
-  fetch(`${PREFIX}videos.json?t=${Date.now()}`, { cache: "no-store" })
+  fetch(`videos.json?t=${Date.now()}`, { cache: "no-store" })
     .then(r => r.json())
     .then(data => {
       videos = data.videos || [];

@@ -14,47 +14,15 @@
 <meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
+<script>
+  // The AI pages moved to the AI desk (ai.html); old news.html?s=ai links go there, keeping a story link.
+  { const p = new URLSearchParams(location.search);
+    if (p.get("s") === "ai") location.replace("ai.html" + (p.get("story") ? `?story=${encodeURIComponent(p.get("story"))}` : "")); }
+</script>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="news.css">
 <script src="sync.js"></script>
 <script src="toolbar.js"></script>
-<style>
-  .story { padding: 14px; }
-  .story-top { display: flex; gap: 12px; align-items: flex-start; }
-  .story-top .text { flex: 1; min-width: 0; }
-  .story .title { font-size: 17px; line-height: 1.3; margin: 4px 0 6px; }
-  .story .summary { color: var(--muted); font-size: 14px; margin: 0; }
-  .thumb { flex: none; width: 92px; height: 92px; border-radius: 10px; object-fit: cover; background: var(--line); }
-  .story-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .story-actions a.tick { text-decoration: none; display: inline-block; }
-  .card.watched .summary { color: var(--done); }
-  .card.watched .thumb { filter: grayscale(1) opacity(0.6); }
-  .reader {
-    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line);
-    font-size: 17px; line-height: 1.6;
-  }
-  .reader p { margin: 0 0 1em; }
-  .reader ul, .reader ol { margin: 0 0 1em; padding-left: 1.3em; }
-  .reader li { margin: 0 0 0.4em; }
-  .reader code { font-family: ui-monospace, Menlo, monospace; font-size: 0.9em; background: var(--line); padding: 1px 5px; border-radius: 4px; }
-  .reader figure { margin: 0 0 1em; }
-  .reader img { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--line); }
-  .reader figcaption { color: var(--muted); font-size: 13px; line-height: 1.4; margin-top: 6px; }
-  .reader h3 { font-size: 18px; line-height: 1.3; margin: 1.4em 0 0.5em; }
-  .reader .done { margin-top: 4px; }
-  .unlock { max-width: 360px; margin: 48px auto; text-align: center; }
-  .unlock p { color: var(--muted); }
-  .unlock form { display: flex; gap: 8px; margin-top: 16px; }
-  .unlock input {
-    flex: 1; min-width: 0; font: inherit; padding: 10px 14px; border-radius: 999px;
-    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-  }
-  .unlock button {
-    font: inherit; padding: 10px 18px; border-radius: 999px; border: 0;
-    background: var(--ink); color: var(--bg); cursor: pointer;
-  }
-  .unlock .error { color: var(--accent); min-height: 1.4em; margin-top: 10px; font-size: 14px; }
-  .lock { display: block; margin: 28px auto 0; background: none; border: 0; color: var(--muted); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
-</style>
 </head>
 <body>
 <div class="wrap">
@@ -62,7 +30,9 @@
     <h1>News</h1>
     <div class="updated" id="updated"></div>
   </header>
-  <nav class="switch sub" id="ai-switch" aria-label="AI" hidden><a href="watch.html?s=ai">Videos</a><a href="news.html?s=ai" aria-current="page">News</a></nav>
+  <nav class="switch sub" id="mode" aria-label="News">
+    <a href="news.html" data-mode="paper" aria-current="page">Today's paper</a><a href="news.html#all" data-mode="all">All stories</a>
+  </nav>
 
   <section class="unlock" id="unlock" hidden>
     <p id="unlock-msg">Enter your news password. You'll only need to do this once on each device.</p>
@@ -74,288 +44,188 @@
   </section>
 
   <div id="app" hidden>
-    <div class="toolbar">
-      <div class="tabs" role="group" aria-label="View">
-        <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="count-new"></span></button>
-        <button class="tab" data-view="later" aria-pressed="false">Later<span class="count" id="count-later"></span></button>
-        <button class="tab" data-view="all" aria-pressed="false">All<span class="count" id="count-all"></span></button>
+    <p class="edition-head" id="edition-head"></p>
+    <div id="all-tools" hidden>
+      <div class="toolbar">
+        <div class="tabs" role="group" aria-label="View">
+          <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="count-new"></span></button>
+          <button class="tab" data-view="later" aria-pressed="false">Later<span class="count" id="count-later"></span></button>
+          <button class="tab" data-view="all" aria-pressed="false">All<span class="count" id="count-all"></span></button>
+        </div>
+        <select class="channel-filter" id="source" aria-label="Filter by source"></select>
       </div>
-      <select class="channel-filter" id="source" aria-label="Filter by source"></select>
+      <div class="search-row"><input type="search" id="q" placeholder="Search all stories" aria-label="Search all stories" autocomplete="off"></div>
     </div>
-      <div class="bulk" id="bulk" hidden><button class="tick" id="mark-all"></button></div>
+    <div class="bulk" id="bulk" hidden><button class="tick" id="mark-all"></button></div>
     <div class="warn" id="warn" hidden></div>
     <main class="list" id="list"></main>
+    <div class="uptodate" id="uptodate" hidden>
+      <strong>You're up to date.</strong>That's today's edition.
+      <div class="more"><a href="news.html#all" data-go="new">All stories →</a><a href="news.html#later" data-go="later" id="to-later" hidden></a></div>
+    </div>
     <button class="lock" id="lock">Lock this device</button>
   </div>
 </div>
 
+<script src="news-core.js"></script>
+<script src="paper.js"></script>
 <script>
-  // Everything here is stored on this device only. The AI section
-  // (news.html?s=ai) uses the same password and read ticks as News but keeps
-  // its own Read Later list and source filter.
-  const SECTION = new URLSearchParams(location.search).get("s") === "ai" ? "ai" : "";
-  const PREFIX = SECTION ? `${SECTION}-` : "";
-  const KEYS = { key: "news-key-v1", read: "news-read-v1", later: `${PREFIX}news-later-v1`, source: `${PREFIX}news-source-v1` };
-  if (SECTION) {
-    document.title = "AI · The Margin";
-    document.querySelector("header h1").textContent = "AI";
-    document.getElementById("ai-switch").hidden = false;
-  }
-  const load = (k, fallback) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } };
-  const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-  const toB64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  // Everything here is stored on this device only. News opens on today's paper, a short finished list
+  // (see paper.js). "All stories" is the whole feed, with New / Later / All and search.
+  // The AI desk (ai.html) uses the same password and read ticks but keeps its own Read Later list.
+  const { load, store, el, ago } = NewsCore;
+  const KEYS = { read: "news-read-v1", later: "news-later-v1", source: "news-source-v1" };
 
-  let read = new Set(load(KEYS.read, []));
-  let later = load(KEYS.later, []);   // full stories, oldest-saved first
+  const st = {
+    read: new Set(load(KEYS.read, [])),
+    later: load(KEYS.later, []),    // full stories, oldest-saved first
+    save() { store(KEYS.read, [...this.read]); store(KEYS.later, this.later); },
+    changed(s, paint) { if (belongs(s)) { paint(); counts(); } else render(); },
+  };
   let source = load(KEYS.source, "");
-  let view = "new";
+  let view = "paper";               // "paper" is today's edition; new / later / all are inside All stories
+  let query = "";
   let stories = [];
   let encrypted = null;
 
   const $ = id => document.getElementById(id);
-  function el(tag, props = {}, children = []) {
-    const node = Object.assign(document.createElement(tag), props);
-    node.append(...children);
-    return node;
-  }
-  function ago(iso) {
-    if (!iso) return "";
-    const mins = Math.round((Date.now() - new Date(iso)) / 60000);
-    if (mins < 60) return `${Math.max(mins, 1)} min ago`;
-    const hrs = Math.round(mins / 60);
-    if (hrs < 24) return `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
-    const days = Math.round(hrs / 24);
-    return `${days} day${days === 1 ? "" : "s"} ago`;
-  }
+  const isLater = id => st.later.some(s => s.id === id);
 
-  // --- Decryption (AES-GCM, key from the password via PBKDF2) ---
-  async function keyFromPassword(password) {
-    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
-    return crypto.subtle.deriveKey(
-      { name: "PBKDF2", salt: b64(encrypted.salt), iterations: encrypted.iterations, hash: "SHA-256" },
-      base, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
-  }
-  async function decrypt(key) {
-    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(encrypted.iv) }, key, b64(encrypted.data));
-    return JSON.parse(new TextDecoder().decode(plain));
-  }
-  async function savedKey() {
-    const raw = load(KEYS.key, null);
-    if (!raw) return null;
-    try { return await crypto.subtle.importKey("raw", b64(raw), { name: "AES-GCM" }, true, ["decrypt"]); }
-    catch (e) { return null; }
-  }
-
-  function showUnlock(message, error = "") {
-    $("app").hidden = true;
-    $("unlock").hidden = false;
-    if (message) $("unlock-msg").textContent = message;
-    $("unlock-error").textContent = error;
-  }
-
-  $("unlock-form").addEventListener("submit", async e => {
-    e.preventDefault();
-    const pw = $("password").value;
-    if (!pw || !encrypted) return;
-    $("unlock-error").textContent = "Unlocking…";
-    try {
-      const key = await keyFromPassword(pw);
-      const data = await decrypt(key);
-      store(KEYS.key, toB64(await crypto.subtle.exportKey("raw", key)));
-      $("password").value = "";
-      start(data);
-    } catch (err) {
-      $("unlock-error").textContent = "That password didn't work.";
-    }
-  });
-  $("lock").addEventListener("click", () => {
-    try { localStorage.removeItem(KEYS.key); } catch (e) {}
-    location.reload();
-  });
-
-  // --- The list ---
-  const isLater = id => later.some(s => s.id === id);
-  function saveState() { store(KEYS.read, [...read]); store(KEYS.later, later); }
+  // --- What's in each view ---
+  const laterIds = () => new Set(st.later.map(s => s.id));
+  const paperList = () => Paper.todaysPaper(stories, st.read, laterIds());
   function inView(name) {
-    if (name === "new") return stories.filter(s => !read.has(s.id) && !isLater(s.id));
-    if (name === "later") return later;
+    if (name === "paper") return paperList();
+    if (name === "new") return stories.filter(s => !st.read.has(s.id) && !isLater(s.id));
+    if (name === "later") return st.later;
     return stories;
   }
   const bySource = list => source ? list.filter(s => s.source === source) : list;
-  const belongs = s => inView(view).some(x => x.id === s.id) && (!source || s.source === source);
 
-  // Article text: strings are paragraphs, {img, alt} images, {h} subheadings.
-  function figure(src, alt) {
-    const img = el("img", { src, alt: alt || "", loading: "lazy" });
-    const fig = el("figure", {}, [img]);
-    if (alt) fig.append(el("figcaption", { textContent: alt }));
-    img.addEventListener("error", () => fig.remove());
-    return fig;
+  // Search covers the whole feed (title, summary, source and article text), whatever tab you're on.
+  const haystacks = new WeakMap();
+  function words(blocks) {
+    return (blocks || []).map(b => typeof b === "string" ? b : b && b.h ? b.h
+      : b && (b.p || b.li) ? (b.p || b.li).map(r => r[0]).join("") : "").join(" ");
   }
-  // Formatted text arrives as [[text, style], ...]; style is "", "b", "i", "bi" or "c".
-  function inline(runs) {
-    return runs.map(([text, style]) => {
-      if (style === "b") return el("strong", { textContent: text });
-      if (style === "i") return el("em", { textContent: text });
-      if (style === "bi") return el("strong", {}, [el("em", { textContent: text })]);
-      if (style === "c") return el("code", { textContent: text });
-      return document.createTextNode(text);
+  const hay = s => { if (!haystacks.has(s)) haystacks.set(s, `${s.title} ${s.summary || ""} ${s.source} ${words(s.text)}`.toLowerCase()); return haystacks.get(s); };
+  function searchPool() {
+    const seen = new Set();
+    return [...stories, ...st.later].filter(s => !seen.has(s.id) && seen.add(s.id));
+  }
+  const terms = () => query.toLowerCase().split(/\s+/).filter(Boolean);
+  function current() {
+    if (view === "paper") return paperList();
+    const t = terms();
+    if (t.length) return bySource(searchPool()).filter(s => t.every(w => hay(s).includes(w)));
+    return bySource(inView(view));
+  }
+  const belongs = s => current().some(x => x.id === s.id);
+
+  function setView(name) {
+    view = name;
+    clearUndo();
+    const paper = name === "paper";
+    $("all-tools").hidden = paper;
+    document.querySelectorAll("#mode a").forEach(a => {
+      if ((a.dataset.mode === "paper") === paper) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
+    if (!paper) document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === name)));
   }
-  function readerBlocks(s) {
-    const blocks = [];
-    let list = null;   // consecutive list items share one <ul>/<ol>
-    for (const b of s.text) {
-      if (b && b.li) {
-        const tag = b.n ? "ol" : "ul";
-        if (!list || list.tagName.toLowerCase() !== tag) {
-          list = el(tag);
-          if (b.n && b.n !== 1) list.start = b.n;
-          blocks.push(list);
-        }
-        list.append(el("li", {}, inline(b.li)));
-        continue;
-      }
-      list = null;
-      if (typeof b === "string") blocks.push(el("p", { textContent: b }));
-      else if (b.p) blocks.push(el("p", {}, inline(b.p)));
-      else if (b.img) blocks.push(figure(b.img, b.alt));
-      else if (b.h) blocks.push(el("h3", { textContent: b.h }));
-    }
-    // No photos in the article text: lead with the story's own picture.
-    // BBC feed thumbnails are small, so ask for a larger size of the same image.
-    if (!s.text.some(b => b && b.img) && s.image) {
-      blocks.unshift(figure(s.image.replace(/(ichef\.bbci\.co\.uk\/[^/]+\/[^/]+\/)240\//, "$1976/"), ""));
-    }
-    return blocks;
-  }
-
-  function card(s) {
-    const readBtn = s.text
-      ? el("button", { className: "tick", textContent: "Read" })
-      : el("a", { className: "tick", textContent: `Read on ${s.source} ↗`, href: s.link, target: "_blank", rel: "noopener" });
-    const laterBtn = el("button", { className: "tick later" });
-    const doneBtn = el("button", { className: "tick" });
-    const top = el("div", { className: "story-top" }, [
-      el("div", { className: "text" }, [
-        el("div", { className: "sub", textContent: `${s.source} · ${ago(s.published)}` }),
-        el("p", { className: "title", textContent: s.title }),
-        el("p", { className: "summary", textContent: s.summary }),
-      ]),
-    ]);
-    if (s.image) {
-      const img = el("img", { className: "thumb", src: s.image, alt: "", loading: "lazy" });
-      img.addEventListener("error", () => img.remove());
-      top.append(img);
-    }
-    const node = el("article", { className: "card story" }, [
-      top, el("div", { className: "story-actions" }, [readBtn, laterBtn, doneBtn]),
-    ]);
-    node.dataset.id = s.id;
-
-    let reader = null;
-    if (s.text) readBtn.addEventListener("click", () => {
-      if (reader) { reader.remove(); reader = null; readBtn.textContent = "Read"; return; }
-      const finish = el("button", { className: "tick done", textContent: "Done — mark as read" });
-      finish.addEventListener("click", () => { markRead(true); });
-      reader = el("div", { className: "reader" }, [...readerBlocks(s), finish]);
-      node.append(reader);
-      readBtn.textContent = "Close";
-    });
-
-    function paint() {
-      const r = read.has(s.id), l = isLater(s.id);
-      node.classList.toggle("watched", r);
-      doneBtn.textContent = r ? "Read ✓" : "Mark read";
-      laterBtn.classList.toggle("on", l);
-      laterBtn.textContent = l ? "Saved ✓" : "Read later";
-    }
-    function afterChange() {
-      saveState();
-      if (belongs(s)) { paint(); counts(); } else render();
-    }
-    function markRead(value) {
-      if (value) { read.add(s.id); later = later.filter(x => x.id !== s.id); } else read.delete(s.id);
-      afterChange();
-    }
-    laterBtn.addEventListener("click", () => {
-      if (isLater(s.id)) later = later.filter(x => x.id !== s.id);
-      else { later.push(s); read.delete(s.id); }
-      afterChange();
-    });
-    doneBtn.addEventListener("click", () => markRead(!read.has(s.id)));
-    paint();
-    return node;
-  }
-
   function counts() {
     for (const name of ["new", "later", "all"]) $(`count-${name}`).textContent = bySource(inView(name)).length;
+    $("edition-head").hidden = view !== "paper";
+    if (view === "paper") {
+      const n = paperList().length;
+      $("edition-head").textContent = n ? `Today's paper — ${n} ${n === 1 ? "story" : "stories"}` : "Today's paper — all read";
+    }
+    const saved = st.later.length;
+    $("to-later").hidden = !saved;
+    $("to-later").textContent = `Saved for later (${saved}) →`;
     updateBulk();
   }
   function buildSourceMenu() {
-    const names = [...new Set([...stories, ...later].map(s => s.source))].sort();
+    const names = [...new Set([...stories, ...st.later].map(s => s.source))].sort();
     if (source && !names.includes(source)) source = "";
     $("source").replaceChildren(el("option", { value: "", textContent: "All sources" }),
       ...names.map(n => el("option", { value: n, textContent: n })));
     $("source").value = source;
   }
   function render() {
-    const shown = bySource(inView(view));
+    const shown = current();
     counts();
+    const paper = view === "paper";
+    $("uptodate").hidden = !paper;
     if (!shown.length) {
-      const msgs = {
-        new: ["All caught up.", "That's the news for now. Go do something else."],
-        later: ["Nothing saved.", "Tap “Read later” on a story to keep it here."],
-        all: ["Nothing here yet.", "Check back after the next update."],
-      };
-      const [title, text] = msgs[view];
-      $("list").replaceChildren(el("div", { className: "empty" }, [el("strong", { textContent: title }), document.createTextNode(text)]));
+      if (paper) return $("list").replaceChildren();   // the "You're up to date" note below is the message
+      const none = terms().length ? ["No matches.", "Nothing in the feed matches that search."]
+        : { new: ["All caught up.", "That's the news for now. Go do something else."],
+            later: ["Nothing saved.", "Tap “Read later” on a story to keep it here."],
+            all: ["Nothing here yet.", "Check back after the next update."] }[view];
+      $("list").replaceChildren(el("div", { className: "empty" }, [el("strong", { textContent: none[0] }), document.createTextNode(none[1])]));
       return;
     }
-    $("list").replaceChildren(...shown.map(card));
+    $("list").replaceChildren(...shown.map(s => NewsCore.storyCard(s, st)));
   }
 
-  // "Mark all" on the New tab, for whatever the filter is showing.
-  // Turns into Undo for a few seconds afterwards.
+  // "Mark all" on today's paper and the New tab, for whatever is showing. Turns into Undo for a few seconds.
   let undo = null, undoTimer = null;
   function clearUndo() { undo = null; clearTimeout(undoTimer); }
   function updateBulk() {
-    const bulk = document.getElementById("bulk"), btn = document.getElementById("mark-all");
+    const bulk = $("bulk"), btn = $("mark-all");
     if (undo) { bulk.hidden = false; btn.textContent = `Undo — marked ${undo.length} as read`; return; }
-    const n = view === "new" ? bySource(inView("new")).length : 0;
+    const n = (view === "paper" || view === "new") && !terms().length ? current().length : 0;
     bulk.hidden = !n;
     btn.textContent = n === 1 ? "Mark as read" : `Mark all ${n} as read`;
   }
-  document.getElementById("mark-all").addEventListener("click", () => {
+  $("mark-all").addEventListener("click", () => {
     if (undo) {
-      undo.forEach(id => read.delete(id));
+      undo.forEach(id => st.read.delete(id));
       clearUndo();
     } else {
-      undo = bySource(inView("new")).map(x => x.id);
-      undo.forEach(id => read.add(id));
+      undo = current().map(x => x.id);
+      undo.forEach(id => st.read.add(id));
       undoTimer = setTimeout(() => { undo = null; updateBulk(); }, 8000);
     }
-    saveState();
+    st.save();
     render();
   });
 
-  document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
-    view = btn.dataset.view;
-    clearUndo();
-    document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+  // --- Controls ---
+  function go(name, hash) {
+    setView(name);
+    history.replaceState(null, "", location.pathname + location.search + hash);
     render();
+  }
+  document.querySelectorAll("#mode a").forEach(a => a.addEventListener("click", e => {
+    e.preventDefault();
+    if (a.dataset.mode === "paper") go("paper", "");
+    else go(view === "paper" ? "new" : view, "#all");
   }));
+  document.querySelectorAll("#uptodate a").forEach(a => a.addEventListener("click", e => { e.preventDefault(); go(a.dataset.go, "#all"); }));
+  document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => { setView(btn.dataset.view); render(); }));
   $("source").addEventListener("change", e => { clearUndo(); source = e.target.value; store(KEYS.source, source); render(); });
+  $("q").addEventListener("input", e => { clearUndo(); query = e.target.value.trim(); render(); });
+  $("lock").addEventListener("click", () => { NewsCore.forgetKey(); location.reload(); });
+
+  function showUnlock(message) {
+    $("app").hidden = true;
+    $("unlock").hidden = false;
+    if (message) $("unlock-msg").textContent = message;
+  }
+  NewsCore.wireUnlock({ form: $("unlock-form"), input: $("password"), errorEl: $("unlock-error"), getEnc: () => encrypted, onData: start });
 
   function start(data) {
     stories = data.stories || [];
     $("updated").textContent = data.updated ? `Updated ${ago(data.updated)}` : "";
     // Read ticks are synced between devices, so keep them (capped) rather than pruning.
-    if (read.size > 5000) { read = new Set([...read].slice(-5000)); saveState(); }
+    if (st.read.size > 5000) { st.read = new Set([...st.read].slice(-5000)); st.save(); }
     $("unlock").hidden = true;
     $("app").hidden = false;
     buildSourceMenu();
+    // The front page and the edition's own links: #all is All stories, #later is the saved list in it.
+    const hash = location.hash;
+    setView(hash === "#later" ? "later" : hash === "#all" ? "new" : "paper");
     render();
     openWanted();
   }
@@ -366,11 +236,10 @@
     if (!id) return;
     const find = () => document.querySelector(`[data-id="${CSS.escape(id)}"]`);
     let node = find();
-    if (!node) {   // hidden by the source filter or sitting in another tab: look everywhere
-      source = ""; store(KEYS.source, ""); buildSourceMenu();
-      for (const name of ["new", "later", "all"]) {
-        view = name;
-        document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === name)));
+    if (!node) {   // not in today's paper, or hidden by a filter or search: look everywhere
+      source = ""; store(KEYS.source, ""); query = ""; $("q").value = ""; buildSourceMenu();
+      for (const name of ["paper", "new", "later", "all"]) {
+        setView(name);
         render();
         node = find();
         if (node) break;
@@ -378,7 +247,7 @@
     }
     const u = new URL(location.href);
     u.searchParams.delete("story");
-    history.replaceState(null, "", u.pathname + u.search + u.hash);
+    history.replaceState(null, "", u.pathname + u.search + (view === "paper" ? "" : "#all"));
     if (!node) return;
     node.scrollIntoView();
     const btn = node.querySelector(".story-actions > :first-child");
@@ -386,9 +255,9 @@
   }
 
   function refreshFromStorage() {
-    if (document.getElementById("app").hidden) return;   // still locked or loading
-    read = new Set(load(KEYS.read, []));
-    later = load(KEYS.later, []);
+    if ($("app").hidden) return;   // still locked or loading
+    st.read = new Set(load(KEYS.read, []));
+    st.later = load(KEYS.later, []);
     if (document.querySelector(".reader")) return counts();   // don't close an open article
     buildSourceMenu();
     render();
@@ -397,11 +266,11 @@
   const refreshSoon = () => { clearTimeout(refreshTimer); refreshTimer = setTimeout(refreshFromStorage, 150); };
   window.addEventListener("pageshow", e => { if (e.persisted) refreshSoon(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshSoon(); });
-  window.addEventListener("storage", e => { if (["news-read-v1", KEYS.later].includes(e.key)) refreshSoon(); });
+  window.addEventListener("storage", e => { if ([KEYS.read, KEYS.later].includes(e.key)) refreshSoon(); });
 
   (async () => {
     try {
-      const status = await fetch(`${PREFIX}status.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      const status = await fetch(`status.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
       if (status && status.configured === false) {
         showUnlock("News isn't set up yet: the NEWS_PASSWORD secret hasn't been added to the repository.");
         $("unlock-form").hidden = true;
@@ -409,10 +278,10 @@
       }
       const failed = (status?.sources || []).filter(s => s.error).map(s => s.name);
       if (failed.length) { $("warn").textContent = `Couldn't refresh: ${failed.join(", ")}`; $("warn").hidden = false; }
-      encrypted = await fetch(`${PREFIX}news.enc.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
-      const key = await savedKey();
+      encrypted = await fetch(`news.enc.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
+      const key = await NewsCore.savedKey();
       if (key) {
-        try { return start(await decrypt(key)); } catch (e) { /* password changed */ }
+        try { return start(await NewsCore.decrypt(encrypted, key)); } catch (e) { /* password changed */ }
       }
       showUnlock();
     } catch (e) {
