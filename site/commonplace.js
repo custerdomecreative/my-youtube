@@ -241,7 +241,8 @@
         window.CPSuggest && list.length > 0 && el("button", { class: "btn small" + (CPSuggest.hasPending(null) ? " primary" : ""), type: "button",
           text: CPSuggest.hasPending(null) ? "Review suggested tags" : "Suggest tags for all",
           onclick: () => { if (allBox.dataset.open === "suggest") { allBox.replaceChildren(); allBox.dataset.open = ""; render(); } else CPSuggest.panel(null, allBox, render); } }),
-        el("a", { class: "btn small", href: "#import", text: "Import Kindle" })));
+        el("a", { class: "btn small", href: "#import", text: "Import Kindle" }),
+        el("button", { class: "btn small", type: "button", text: "Export", onclick: exportAll })));
     const allBox = el("div");
     if (!list.length) return el("div", {}, head, emptyState());
     return el("div", {}, head, allBox, el("div", { class: "grid" }, list.map(s =>
@@ -249,6 +250,22 @@
         coverEl(s, "book-cover"),
         el("div", { class: "book-title", text: s.title }),
         el("div", { class: "book-sub", text: [s.author, plural(s.highlights.length, "highlight")].filter(Boolean).join(" · ") })))));
+  }
+  // Everything as one JSON file (books, cover links, highlights, notes, tags, review state). Downloaded to
+  // this device only; nothing is sent anywhere. The API key and the GitHub token are not included.
+  function exportAll() {
+    const data = {
+      exported: new Date().toISOString(), app: "Commonplace",
+      sources: CP.allSources().filter(s => s.highlights.length).map(s => ({
+        id: s.id, kind: s.kind, title: s.title, author: s.author, cover: s.cover ?? null, url: s.url ?? null,
+        highlights: CP.sortedHighlights(s).map(h => ({ id: h.id, text: h.text, note: h.note, tags: h.tags, location: h.location, page: h.page, via: h.via, favourite: h.favourite, created: h.created, review: CP.getReview(h.id) })),
+      })),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 1)], { type: "application/json" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: `commonplace-export-${CP.todayStr()}.json` });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    toast("Export downloaded");
   }
   function sourceView(id) {
     const src = CP.getSource(id);
