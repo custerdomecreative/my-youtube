@@ -1,15 +1,28 @@
-# Watch List
+# The Margin
 
-A distraction-free page showing only the latest videos from channels I choose.
-No algorithm, no recommendations, no search.
+A private, newspaper-style app for my own reading and watching: a **Today** front
+page, a **Commonplace Book** of highlights, **News**, an **AI** desk and **Watch**.
+No algorithm, no recommendations, nothing endless. It's a static site (`site/`)
+published with GitHub Pages, and it opens on Today.
+
+| Section | Page | What it is |
+| --- | --- | --- |
+| Today | `index.html` | The front page: a highlight to start the day, From your library, Now reading, today's paper, the AI desk, your watch list. Built on this device from the other sections' data. |
+| Commonplace Book | `commonplace.html` | Highlights and review (private, see below). On the phone tab bar it's "Book". |
+| News | `news.html` | **Today's paper** (a short finished list that ends "You're up to date") and **All stories** (the whole feed, with New / Later / All, source filter and search). |
+| AI | `ai.html` | One desk with three tabs: News, Videos, and Notes (my highlights tagged `ai` or `ai-parallel`). |
+| Watch | `watch.html` | The watch list, with **Channels** (every channel's full catalogue, with search) as a tab: `watch.html#channels`. |
+
+Old links still work: `./?s=ai`, `news.html?s=ai` and `watch.html?s=ai` go to the AI
+desk, `channels.html` goes to the Channels tab, and `today.html` goes to Today.
 
 ## How it works
 
-- `channels.json` lists the channels.
+- `channels.json` lists the YouTube channels for Watch.
 - Every 2 hours during the day, a GitHub Action runs `scripts/fetch_feeds.py`, which reads each
-  channel's public YouTube feed (long-form uploads only, no Shorts) and builds the page.
-- The page is published with GitHub Pages. Videos play embedded on the page.
-- "Mark watched" ticks are stored on your device.
+  channel's public YouTube feed (long-form uploads only, no Shorts) and builds the page data.
+- The site is published with GitHub Pages. Videos play embedded on the page.
+- "Mark watched" and "Mark read" ticks are stored on your device (and synced, see below).
 
 ## Add or remove a channel
 
@@ -21,11 +34,17 @@ The page rebuilds automatically after the commit.
 
 Actions tab → "Update watch list" → "Run workflow".
 
-## News page
+## News
 
-`news.html` shows recent stories from the feeds in `feeds.json`, with the
-article text readable on the page where the site allows it (not NYT).
+`news.html` reads the feeds in `feeds.json`, with the article text readable on the
+page where the site allows it (not NYT).
 
+- **Today's paper** is RTÉ News, BBC World and the NYT from the last 24 hours, plus
+  at most one rugby or football story from BBC Sport and one from VGC. Which stories
+  make the paper is decided in `site/paper.js`, shared with the front page so they
+  always agree; edit the sport word lists at the top of that file. The paper is
+  chosen before you start reading, so it only gets shorter. Everything else
+  (The Verge, other sport, older stories) is in **All stories**, one tap deeper.
 - The story data is encrypted with the `NEWS_PASSWORD` repository secret
   before publishing, so the public page is unreadable without it. Each device
   asks for the password once.
@@ -33,21 +52,22 @@ article text readable on the page where the site allows it (not NYT).
 - To add or remove a source, edit `feeds.json`. Set `"fulltext": false` for
   paywalled sites.
 
-## AI section
+## AI desk
 
-The **AI** tab (`./?s=ai`, with Videos and News inside it) works exactly like
-the Videos and News pages, from its own lists:
+`ai.html` has three tabs, from its own lists:
 
-- `ai-channels.json` lists its YouTube channels (same format as `channels.json`).
-- `ai-feeds.json` lists its news feeds (same format as `feeds.json`).
+- **News** and **Videos**: `ai-feeds.json` lists the news feeds and `ai-channels.json`
+  the YouTube channels (same formats as `feeds.json` and `channels.json`). The
+  update job fetches them on the same schedule (videos every 30 minutes, news
+  about every 2 hours) with `scripts/fetch_feeds.py ai` and `scripts/fetch_news.py ai`,
+  which write `ai-videos.json`, `ai-news.enc.json` and `ai-status.json`. AI news is
+  encrypted with the same `NEWS_PASSWORD`, so an unlocked device can read both.
+- **Notes**: my own highlights tagged `ai` or `ai-parallel`, read from Commonplace on
+  the device (never published).
 
-The same update job fetches them on the same schedule (videos every
-30 minutes, news about every 2 hours) with `scripts/fetch_feeds.py ai` and
-`scripts/fetch_news.py ai`, which write `ai-videos.json`, `ai-news.enc.json`
-and `ai-status.json`. AI news is encrypted with the same `NEWS_PASSWORD`, so an
-unlocked device can read both. Watched and read ticks are shared with the main
-pages; Watch Later, Read Later, Playing and Favourites are kept per section.
-AI channels aren't in the Channels tab.
+Watched and read ticks are shared with Watch and News; Watch Later, Read Later,
+Playing and Favourites for AI items are kept separately. AI channels aren't in the
+Channels tab.
 
 ## Update now button
 
@@ -73,9 +93,9 @@ Update button, which also needs "Contents: Read and write" on that repository.
 - **⟳ Reload app** reloads the page from GitHub, skipping cached copies. Each
   deploy stamps the commit into `version.json` and the asset URLs, and pages
   reload themselves once when they see a newer version.
-- **Block 1 hr** hides all pages until the time is up, on every synced device.
+- **Block 1 hr** (in the Menu) hides all pages until the time is up, on every synced device.
 
-## Commonplace (highlights and review)
+## Commonplace Book (highlights and review)
 
 `commonplace.html` is a private, Readwise-style place for highlights from the
 Kindle, physical books, articles and spoken or typed thoughts. It has four
@@ -89,7 +109,7 @@ repository `custerdomecreative/my-youtube-state`, in a `commonplace/` folder
 instantly and keeps working offline (changes made offline are sent later). It
 uses the same device-only token as Sync, so a device that has Sync set up
 already has this. A device without one shows "Commonplace needs sync set up"
-with a link to where the token is entered (Videos → Update now).
+with a link to where the token is entered (Watch → Update now).
 
 - **Kindle import:** connect the Kindle to the Mac, open its `documents`
   folder, copy `My Clippings.txt`, then Library → Import Kindle and choose it.
@@ -149,7 +169,7 @@ The page opens with the passage filled in and asks which book, and the page.
 
 If you keep the site on your Home Screen, Shortcuts opens links in **Safari**,
 which keeps its own separate storage on iPhone. Enter the sync token there once
-too (open Videos in Safari → Update now) or Commonplace will say it needs sync
+too (open Watch in Safari → Update now) or Commonplace will say it needs sync
 set up.
 
 ### Suggested tags (Claude)
