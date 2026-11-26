@@ -149,3 +149,5 @@ details.more summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
 .sg-book { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
 .sg-book summary { cursor: pointer; font-family: var(--serif); font-size: 17px; font-weight: 600; }
+.note-orig { margin: 4px 0 0 15px; color: var(--muted); font-size: 12px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rv-card .note-orig { max-width: 34em; margin-left: auto; margin-right: auto; }

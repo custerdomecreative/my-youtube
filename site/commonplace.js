@@ -158,6 +158,7 @@
       if (opts.showSource) card.append(el("a", { class: "hl-src", href: `#library/${encodeURIComponent(src.id)}` }, coverEl(src, "cover"), el("span", {}, el("b", { text: src.title }), src.author ? " · " + src.author : "")));
       card.append(el("div", { class: "hl-top" }, el("p", { class: "passage" }, markText(h.text, opts.terms)), starButton(src.id, h.id)));
       if (h.note) card.append(el("div", { class: "note" }, markText(h.note, opts.terms)));
+      if (h.note && h.noteOriginal && h.noteOriginal !== h.note) card.append(el("div", { class: "note-orig", text: "Typed on Kindle: " + h.noteOriginal }));
       if (h.tags.length) card.append(el("div", { class: "tags" }, h.tags.map(t => el("span", { class: "tag", text: t }))));
       const bits = [h.location, h.page != null ? `p. ${h.page}` : null, VIA[h.via], discarded ? "Not in review" : null].filter(Boolean);
       if (bits.length) card.append(el("div", { class: "meta-line", text: bits.join(" · ") }));
@@ -201,6 +202,7 @@
         el("div", { class: "rv-src" }, coverEl(src, "cover"), el("span", {}, el("b", { text: src.title }), src.author ? " · " + src.author : "", cur.location ? ` · ${cur.location}` : cur.page != null ? ` · p. ${cur.page}` : "")),
         el("p", { class: "rv-passage" + (len > 600 ? " xlong" : len > 280 ? " long" : ""), text: cur.text }),
         cur.note && el("div", { class: "note", text: cur.note }),
+        cur.note && cur.noteOriginal && cur.noteOriginal !== cur.note && el("div", { class: "note-orig", text: "Typed on Kindle: " + cur.noteOriginal }),
         cur.tags.length > 0 && el("div", { class: "tags" }, cur.tags.map(t => el("span", { class: "tag", text: t }))),
         editing
           ? editor(src, cur, { onDone: r => { if (r.deleted) render(); else drawBody(false); } })
@@ -434,13 +436,27 @@
       const extras = [t.edited && `${plural(t.edited, "edited passage")} updated`, t.notes && `${plural(t.notes, "note")} attached`,
         t.removed && `${t.removed} you deleted stay deleted`, parsed.skipped.bookmarks && `${plural(parsed.skipped.bookmarks, "bookmark")} skipped`].filter(Boolean);
       const nothing = !t.new && !t.edited && !changed.some(b => b.noteFill.length);
+      // Notes typed on the Kindle's keyboard: offer to have Claude fix the spelling (the original is kept).
+      const notes = CPKindle.kindleNotes(plan, CP);
+      const canTidy = notes.length > 0 && window.CPSuggest && CPSuggest.hasKey();
+      const tidy = canTidy && el("input", { type: "checkbox", id: "tidy-notes", checked: true });
       out.replaceChildren(el("div", { class: "panel" },
         el("p", { class: "big-num", text: `${plural(t.highlights, "highlight")} in ${plural(t.books, "book")}, ${t.new} new` }),
         extras.length > 0 && el("p", { class: "hint", text: extras.join(" · ") }),
         changed.length > 0 && el("ul", { class: "imp-list" }, changed.slice(0, 14).map(b => el("li", {}, el("span", { text: b.book.title }), el("span", { text: `+${b.add.length}` }))),
           changed.length > 14 && el("li", {}, el("span", { text: `and ${changed.length - 14} more books` }), el("span"))),
+        canTidy && el("label", { class: "row", for: "tidy-notes", style: "gap:8px; font-size:15px; margin-top:14px; flex-wrap:nowrap; align-items:flex-start" }, tidy,
+          `Tidy ${plural(notes.length, "note")} typed on the Kindle with Claude: fixes spelling and shorthand, keeps your words. The original is kept underneath.`),
+        notes.length > 0 && !canTidy && window.CPSuggest && el("p", { class: "hint", style: "margin-top:12px", text: "To have Claude tidy notes typed on the Kindle, add your Anthropic key on this device first (open a book → Suggest tags)." }),
         el("div", { class: "row", style: "margin-top:16px" },
-          el("button", { class: "btn primary", type: "button", disabled: nothing, text: nothing ? "Nothing new to save" : t.new ? `Save ${plural(t.new, "new highlight")}` : "Save updates", onclick: () => {
+          el("button", { class: "btn primary", type: "button", disabled: nothing, text: nothing ? "Nothing new to save" : t.new ? `Save ${plural(t.new, "new highlight")}` : "Save updates", onclick: async e => {
+            if (tidy && tidy.checked) {
+              const b = e.currentTarget; b.disabled = true; b.textContent = "Tidying notes…";
+              try {
+                const clean = await CPSuggest.tidyNotes(notes);
+                clean.forEach((v, i) => { if (v && v !== notes[i].note) notes[i].set(v); });
+              } catch (err) { toast(err.message + " Notes saved as typed."); }
+            }
             CPKindle.applyImport(plan, CP);
             CP.fillCovers();
             out.replaceChildren(el("div", { class: "panel" }, el("p", { class: "big-num", text: "Saved" }), el("p", { class: "hint", text: "Your notes and tags on existing highlights were left alone." }),

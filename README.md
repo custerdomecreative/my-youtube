@@ -108,6 +108,13 @@ with a link to where the token is entered (Videos → Update now).
   up once, then saved. Change one from a book's page.
 - **Block 1 hr** does not cover Commonplace.
 
+- **Notes typed on the Kindle:** type them fast and messy. On import, Commonplace
+  offers to have Claude tidy them (spelling, typos and obvious shorthand fixed;
+  your words, meaning and length kept), using the Anthropic key on that device.
+  The note as typed is kept and shown underneath ("Typed on Kindle: …"). If you
+  later edit the note in the app, your version wins and a re-import never
+  changes it.
+
 ### Hands-free thoughts (iPhone Shortcut)
 
 The Shortcut opens the page with the text after a `#`, which never leaves the
