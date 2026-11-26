@@ -21,6 +21,26 @@
 <link rel="stylesheet" href="style.css">
 <script src="sync.js"></script>
 <script src="toolbar.js"></script>
+<style>
+  .channel-list { display: grid; gap: 10px; }
+  .channel-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    color: var(--ink); text-decoration: none; font-weight: 600;
+  }
+  .channel-row span { color: var(--muted); font-weight: 400; font-size: 14px; white-space: nowrap; }
+  .back { display: inline-block; color: var(--muted); text-decoration: none; font-size: 14px; margin-bottom: 6px; }
+  #p-channels h2 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 18px; }
+  .controls input[type=search], .controls select {
+    font: inherit; font-size: 14px; padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  .controls input[type=search] { flex: 1 1 180px; min-width: 0; }
+  .controls label { font-size: 14px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .more { display: block; margin: 20px auto 0; }
+  .result-count { color: var(--muted); font-size: 13px; margin: -8px 0 14px; }
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -28,7 +48,8 @@
     <h1>Watch</h1>
     <div class="updated" id="updated"></div>
   </header>
-  <nav class="switch sub" id="watch-switch" aria-label="Watch"><a href="watch.html" aria-current="page">Watch list</a><a href="channels.html">Channels</a></nav>
+  <nav class="switch sub" id="watch-switch" aria-label="Watch"><a href="watch.html" data-tab="list" aria-current="page">Watch list</a><a href="watch.html#channels" data-tab="channels">Channels</a></nav>
+  <section id="p-list">
   <div class="toolbar">
     <div class="tabs" role="group" aria-label="View">
       <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="count-new"></span></button>
@@ -42,9 +63,14 @@
   <div class="bulk" id="bulk" hidden><button class="tick" id="mark-all"></button></div>
   <div class="warn" id="warn" hidden></div>
   <main class="list" id="list"></main>
+  </section>
+  <section id="p-channels" hidden><main id="channels-main"></main></section>
 </div>
 
 <script src="player.js"></script>
+<script src="search-config.js"></script>
+<script src="search.js"></script>
+<script src="channels.js"></script>
 <script>
   // Everything here is stored on this device only. (The AI videos live on the AI desk, ai.html.)
   const KEYS = { watched: "watched-v1", later: "later-v1", channel: "channel-v1" };
@@ -77,8 +103,8 @@
   function inView(name) {
     if (name === "new") return videos.filter(v => !watched.has(v.id) && !isLater(v.id));
     if (name === "later") return later;
-    if (name === "playing") return getPlaying().filter(v => inSection(v) && !watched.has(v.id));
-    if (name === "favs") return getFavourites().filter(inSection).reverse();   // newest first
+    if (name === "playing") return getPlaying().filter(v => isWatch(v) && !watched.has(v.id));
+    if (name === "favs") return getFavourites().filter(isWatch).reverse();   // newest first
     return videos;
   }
   const byChannel = list => channel ? list.filter(v => v.channel === channel) : list;
@@ -136,7 +162,7 @@
 
   function buildChannelMenu() {
     const select = document.getElementById("channel");
-    const names = [...new Set([...videos, ...later, ...getPlaying().filter(inSection), ...getFavourites().filter(inSection)].map(v => v.channel).filter(Boolean))]
+    const names = [...new Set([...videos, ...later, ...getPlaying().filter(isWatch), ...getFavourites().filter(isWatch)].map(v => v.channel).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
     if (channel && !names.includes(channel)) channel = "";
     select.replaceChildren(
@@ -248,6 +274,34 @@
     const play = node.querySelector(".player > button");
     if (play) play.click();
   }
+
+  // Watch list and Channels are two tabs of this page. #channels (or #channels/<id>) is the Channels tab;
+  // the other tab's players are cleared when you switch, so nothing keeps playing out of sight.
+  const onChannels = () => /^#channels(\/|$)/.test(location.hash);
+  function showTab() {
+    const ch = onChannels();
+    document.getElementById("p-list").hidden = ch;
+    document.getElementById("p-channels").hidden = !ch;
+    document.querySelectorAll("#watch-switch a").forEach(a => {
+      if ((a.dataset.tab === "channels") === ch) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
+    if (ch) {
+      saveAll();
+      if (loaded) render();
+      Channels.route();
+    } else {
+      saveAll();
+      document.getElementById("channels-main").replaceChildren();
+      document.title = "Watch · The Margin";
+    }
+  }
+  window.addEventListener("hashchange", showTab);
+  document.querySelector('#watch-switch a[data-tab="list"]').addEventListener("click", e => {
+    e.preventDefault();
+    history.pushState(null, "", location.pathname + location.search);
+    showTab();
+  });
+  showTab();
 
   fetch(`videos.json?t=${Date.now()}`, { cache: "no-store" })
     .then(r => r.json())

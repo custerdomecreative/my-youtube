@@ -1,4 +1,4 @@
-// Shared by the Videos and Channels pages: small helpers and the embedded
+// Shared by the Watch list, the Channels tab and the AI desk: small helpers and the embedded
 // player with its click shields and custom fullscreen button.
 if (/[?&]debug\b/.test(location.search)) document.body.classList.add("debug");
 
@@ -53,11 +53,9 @@ document.addEventListener("keydown", e => {
 });
 
 
-// The page's section: "" for the main pages, "ai" for the AI section
-// (watch.html?s=ai and news.html?s=ai). Videos carry their section, so each
-// section's Playing and Favourites tabs only show their own videos.
-const SECTION = new URLSearchParams(location.search).get("s") === "ai" ? "ai" : "";
-const inSection = v => (v.section || "") === SECTION;
+// Videos from the AI channels carry section "ai" and live on the AI desk (ai.html); the Watch list's
+// Playing and Favourites tabs only show the others.
+const isWatch = v => !v.section;
 
 // --- Resume where you left off, and the Playing tab ---
 // Positions are saved as { videoId: [seconds, duration, details, savedAt] }

@@ -110,7 +110,6 @@
     if (page === "today.html" || page === "index.html" || page === "") return "today";
     if (page === "news.html") return "news";
     if (page === "ai.html") return "ai";
-    if (page === "channels.html") return "watch";
     return "watch";
   }
 
