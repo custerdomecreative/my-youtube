@@ -79,8 +79,8 @@
   // ---------- shared pieces ----------
   function setupView() {
     return el("div", { class: "empty" },
-      el("strong", { text: "Commonplace needs sync set up" }),
-      el("p", { class: "hint", text: "Your highlights are kept in your private repository, never on the public site. Open Videos and tap “Update now” once to paste your GitHub token, then come back." }),
+      el("strong", { text: "Commonplace Book needs sync set up" }),
+      el("p", { class: "hint", text: "Your highlights are kept in your private repository, never on the public site. Open Watch and tap “Update now” once to paste your GitHub token, then come back." }),
       el("a", { class: "btn primary", href: "./", text: "Open sync setup" }));
   }
   // Cover image, or the title set in Newsreader on a tinted card.

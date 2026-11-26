@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="build" content="__BUILD__">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>News</title>
+<title>News · The Margin</title>
 <meta name="robots" content="noindex">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Watch List">
+<meta name="apple-mobile-web-app-title" content="The Margin">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#e9edf1" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#141a22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
 <link rel="stylesheet" href="style.css">
@@ -58,7 +58,6 @@
 </head>
 <body>
 <div class="wrap">
-  <nav class="switch" aria-label="Sections"><a href="./">Videos</a><a href="channels.html">Channels</a><a href="news.html" aria-current="page">News</a><a href="./?s=ai">AI</a><a href="commonplace.html">Commonplace</a></nav>
   <header>
     <h1>News</h1>
     <div class="updated" id="updated"></div>
@@ -98,10 +97,8 @@
   const PREFIX = SECTION ? `${SECTION}-` : "";
   const KEYS = { key: "news-key-v1", read: "news-read-v1", later: `${PREFIX}news-later-v1`, source: `${PREFIX}news-source-v1` };
   if (SECTION) {
-    document.title = "AI";
+    document.title = "AI · The Margin";
     document.querySelector("header h1").textContent = "AI";
-    document.querySelectorAll("nav.switch:not(.sub) a").forEach(a =>
-      a.getAttribute("href") === "./?s=ai" ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
     document.getElementById("ai-switch").hidden = false;
   }
   const load = (k, fallback) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } };

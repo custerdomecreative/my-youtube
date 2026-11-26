@@ -1,36 +1,42 @@
-/* "Evening shelf": dark-first, deep blue-slate with a brass accent.
-   Newsreader for titles and reading; Atkinson Hyperlegible Next for the rest.
-   Both self-hosted (fonts/), OFL-licensed. */
+/* The Margin: a newspaper front page. White paper by day, an "evening edition"
+   by night (follows the system setting). Newsreader for the masthead, headlines
+   and passages; Libre Franklin for labels, navigation and UI. Both self-hosted
+   (fonts/), OFL-licensed. Accent used sparingly: review kicker, note rules. */
 @font-face { font-family: "Newsreader"; src: url("fonts/newsreader-latin-opsz-normal.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap; }
 @font-face { font-family: "Newsreader"; src: url("fonts/newsreader-latin-opsz-italic.woff2") format("woff2"); font-weight: 200 800; font-style: italic; font-display: swap; }
-@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Libre Franklin"; src: url("fonts/libre-franklin-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
 :root {
-  --sans: "Atkinson Hyperlegible Next", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --sans: "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
-  --bg: #e9edf1;
-  --surface: #f8fafc;
-  --raised: #dfe5eb;
-  --ink: #17202b;
-  --muted: #5b6775;
-  --line: #d3dae2;
-  --accent: #9a6208;
-  --accent-soft: rgba(154, 98, 8, 0.12);
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --raised: #efece6;
+  --tint: #efece6;
+  --ink: #121212;
+  --muted: #5c5c5c;
+  --line: #dcdcdc;
+  --accent: #8f5a0f;
+  --accent-soft: rgba(143, 90, 15, 0.10);
   --accent-ink: #ffffff;
-  --done: #8a95a3;
+  --done: #767676;
+  --danger: #b3261e;
+  --tabbar-h: 0px;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #141a22;
-    --surface: #1c2430;
-    --raised: #253041;
-    --ink: #e8e4da;
-    --muted: #9aa3af;
-    --line: #2b3646;
-    --accent: #d9a441;
-    --accent-soft: rgba(217, 164, 65, 0.16);
-    --accent-ink: #141a22;
-    --done: #5f6b79;
+    --bg: #16140f;
+    --surface: #16140f;
+    --raised: #2a2620;
+    --tint: #2a2620;
+    --ink: #ece7dc;
+    --muted: #aaa395;
+    --line: #3a362e;
+    --accent: #d9a653;
+    --accent-soft: rgba(217, 166, 83, 0.16);
+    --accent-ink: #16140f;
+    --done: #8d877a;
+    --danger: #f08a7e;
   }
 }
 * { box-sizing: border-box; }
@@ -44,10 +50,10 @@ body {
 .wrap {
   max-width: 720px;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top) + 20px) 16px calc(env(safe-area-inset-bottom) + 40px);
+  padding: 12px 18px calc(env(safe-area-inset-bottom) + var(--tabbar-h) + 40px);
 }
 header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-h1 { font-family: var(--serif); font-size: 40px; line-height: 1.05; font-weight: 600; letter-spacing: -0.015em;
+h1 { font-family: var(--serif); font-size: 32px; line-height: 1.1; font-weight: 600; letter-spacing: -0.01em;
      font-variation-settings: "opsz" 72; margin: 6px 0 0; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 a { color: inherit; }
@@ -63,7 +69,7 @@ a { color: inherit; }
 .list { display: grid; gap: 18px; }
 .card {
   background: var(--surface); border: 1px solid var(--line);
-  border-radius: 12px; overflow: hidden;
+  border-radius: 6px; overflow: hidden;
 }
 .player { position: relative; aspect-ratio: 16 / 9; background: #000; }
 .player button {
@@ -171,15 +177,6 @@ body.no-scroll { overflow: hidden; }
 .music-link { text-decoration: none; text-align: center; }
 @media (hover: hover) and (pointer: fine) { .music-link { display: none; } }
 .sync-status { color: var(--muted); font-size: 11px; }
-/* Top row: section switch + Reload / Block buttons */
-.topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 18px; padding-bottom: 2px; border-bottom: 1px solid var(--line); }
-.topbar .switch { margin-bottom: 0; }
-.top-tools { display: flex; gap: 6px; margin-left: auto; }
-.top-btn {
-  border: 1px solid var(--line); background: transparent; color: var(--muted);
-  border-radius: 8px; padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
-}
-.top-btn.attention { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 /* Block screen */
 html.blocked body > *:not(.blocked-screen) { display: none !important; }
 .blocked-screen {
@@ -235,5 +232,63 @@ html.blocked body > *:not(.blocked-screen) { display: none !important; }
 .reader h3, .reader h4 { font-family: var(--sans); }
 .reader a { color: var(--ink); text-decoration-color: var(--accent); text-underline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
-/* Five section tabs (Videos, Channels, News, AI, Commonplace) must fit at 375px: tighten the gap, never the label. */
-@media (max-width: 430px) { .switch:not(.sub) { gap: 12px; } .switch:not(.sub) a { font-size: 14.5px; } }
+
+/* ---- Masthead, section bar, phone tab bar and Menu (built by toolbar.js) ---- */
+.chrome { max-width: 1200px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 14px) 16px 0; }
+.chrome-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.chrome-date { font-size: 14px; line-height: 1.5; }
+.chrome-date b { display: block; font-weight: 700; }
+.chrome-date span { color: var(--muted); }
+.chrome-date .short { display: none; }
+.chrome-tools { display: flex; gap: 8px; position: relative; }
+.chrome-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 44px; height: 44px; padding: 0 14px;
+  background: transparent; border: 1px solid var(--line); color: var(--ink); border-radius: 6px;
+  font: 600 14px var(--sans); cursor: pointer; white-space: nowrap;
+}
+.chrome-btn.icon { width: 44px; padding: 0; }
+.chrome-btn:hover { border-color: var(--muted); }
+.chrome-btn.attention { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chrome svg, .tabbar svg { flex: none; }
+.masthead {
+  display: block; margin: 6px 0 4px; text-align: center; color: var(--ink); text-decoration: none;
+  font-family: var(--serif); font-variation-settings: "opsz" 72; font-weight: 700; font-size: 68px; line-height: 1; letter-spacing: -0.01em;
+}
+.sections { display: flex; justify-content: center; flex-wrap: wrap; gap: 0 36px; padding: 6px 0 4px; font-size: 15px; }
+.sections a { color: var(--ink); text-decoration: none; padding: 12px 0 4px; border-bottom: 2px solid transparent; }
+.sections a:hover { text-decoration: underline; }
+.sections a[aria-current="page"] { font-weight: 700; border-bottom-color: var(--ink); }
+.dbl-rule { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); height: 3px; margin-top: 10px; }
+.menu-panel {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; width: 260px; padding: 6px;
+  background: var(--bg); border: 1px solid var(--ink); border-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+.menu-panel[hidden] { display: none; }
+.menu-status { padding: 10px 12px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-radius: 4px;
+  background: transparent; color: var(--ink); font: 500 15px var(--sans); text-align: left; cursor: pointer;
+}
+.menu-item:hover { background: var(--tint); }
+.tabbar { display: none; }
+@media (max-width: 719px) {
+  :root { --tabbar-h: calc(env(safe-area-inset-bottom) + 58px); }
+  .chrome { padding-left: 18px; padding-right: 18px; }
+  .chrome-date .long, .chrome-date span { display: none; }
+  .chrome-date .short { display: inline; font-size: 12px; color: var(--muted); }
+  .chrome-btn.reload { display: none; }
+  .chrome-btn.menu { border-color: transparent; padding: 0; width: 44px; justify-content: flex-end; }
+  .chrome-btn.menu .lbl { display: none; }
+  .masthead { font-size: 36px; margin: -4px 0 10px; }
+  .sections { display: none; }
+  .dbl-rule { margin-top: 0; }
+  .tabbar {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding: 6px 4px calc(env(safe-area-inset-bottom) + 4px); background: var(--bg); border-top: 1px solid var(--line);
+  }
+  .tabbar a {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 48px;
+    font-size: 11px; font-weight: 500; color: var(--muted); text-decoration: none;
+  }
+  .tabbar a[aria-current="page"] { color: var(--ink); font-weight: 700; }
+}
