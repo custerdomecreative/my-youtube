@@ -64,7 +64,7 @@
     clearTimeout(redrawTimer);
     redrawTimer = setTimeout(() => {
       const name = parseRoute().name;
-      if (ui.editors > 0 || ui.reviewing || /^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || "")) return;
+      if (ui.editors > 0 || /^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || "")) return;
       if (name === "library" || name === "review" || name === "search") render();
     }, 300);
   });

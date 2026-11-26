@@ -21,6 +21,7 @@
   const K = { sources: "cp-sources-v1", review: "cp-review-v1", shas: "cp-shas-v1", dirty: "cp-dirty-v1", today: "cp-today-v1" };
   const DAILY_MAX = 7;
   const THOUGHTS_ID = "src_my-thoughts";
+  const TODAY = "_today";   // key in review.json for the day's shared set
 
   // ---------- small helpers ----------
   const ls = () => { try { return typeof localStorage !== "undefined" ? localStorage : null; } catch (e) { return null; } };
@@ -273,7 +274,7 @@
     review[hid] = prev ? { ...prev, t: Date.now() } : { due: todayStr(), interval: 3, state: "active", seen: 0, t: Date.now(), last: "" };
     dirty.review = true; persist(); scheduleFlush(20000);
   }
-  const reviewedToday = (today = todayStr()) => Object.values(review).filter(e => e.last === today).length;
+  const reviewedToday = (today = todayStr()) => Object.entries(review).filter(([id, e]) => id !== TODAY && e.last === today).length;
 
   // Today's picks: due first, then never-seen; favourites weighted up; some randomness,
   // and a nudge against several from the same source in a row.
@@ -300,15 +301,25 @@
     return picked;
   }
   // Today's cards still to do, plus how many were done today (on any device).
+  // Today's set is chosen once and shared through review.json ("_today"), so the phone and the Mac
+  // show the same 7 passages. The pick is also seeded by the date, so two devices that pick before
+  // they've synced usually agree anyway; if they don't, the first pick of the day wins (see mergeReview).
   function dailyQueue(today = todayStr()) {
-    const done = reviewedToday(today);
-    let saved = lsGet(K.today, null);
-    if (!saved || saved.date !== today) {
-      saved = { date: today, ids: pickDaily(allHighlights(), review, today, Math.max(0, DAILY_MAX - done)) };
-      lsSet(K.today, saved);
+    let set = review[TODAY];
+    if (!set || set.date !== today) {
+      const legacy = lsGet(K.today, null);   // a list this device picked before sets were shared
+      const ids = legacy && legacy.date === today ? legacy.ids : pickDaily(allHighlights(), review, today, DAILY_MAX, seeded(today));
+      set = review[TODAY] = { date: today, ids, t: Date.now() };
+      dirty.review = true; persist(); scheduleFlush(5000);
     }
-    const pending = saved.ids.filter(id => findHighlight(id) && !(review[id] && review[id].last === today));
-    return { pending, done };
+    const ids = set.ids.filter(id => findHighlight(id));
+    const isDone = id => review[id] && review[id].last === today;
+    return { pending: ids.filter(id => !isDone(id)), done: ids.filter(isDone).length };
+  }
+  // A repeatable random sequence for a given day.
+  function seeded(str) {
+    let a = parseInt(hash("daily:" + str).slice(-8), 16) >>> 0;
+    return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
 
   // ---------- search ----------
@@ -346,9 +357,17 @@
     const cover = newer.cover !== null && newer.cover !== undefined ? newer.cover : older.cover ?? null;
     return canonSource({ ...newer, cover, added: a.added < b.added ? a.added : b.added, highlights, deleted });
   }
+  // Per highlight, the latest change wins. Today's set: the later day wins; on the same day, the set with
+  // more of it already reviewed wins (so progress on one device is never thrown away), then the first pick.
   function mergeReview(a, b) {
     const out = { ...a };
-    for (const [id, e] of Object.entries(b || {})) if (!out[id] || e.t > out[id].t) out[id] = e;
+    for (const [id, e] of Object.entries(b || {})) if (id !== TODAY && (!out[id] || e.t > out[id].t)) out[id] = e;
+    const x = (a || {})[TODAY], y = (b || {})[TODAY];
+    if (x || y) {
+      const progress = set => set.ids.filter(id => out[id] && out[id].last === set.date).length;
+      out[TODAY] = !x ? y : !y ? x : x.date !== y.date ? (x.date > y.date ? x : y)
+        : progress(x) !== progress(y) ? (progress(x) > progress(y) ? x : y) : (x.t <= y.t ? x : y);
+    }
     return out;
   }
   const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
