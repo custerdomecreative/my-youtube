@@ -4,247 +4,40 @@
 <meta charset="utf-8">
 <meta name="build" content="__BUILD__">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Watch · The Margin</title>
+<title>The Margin</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="The Margin">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
+<script>
+  // The AI pages used to live at ./?s=ai; they are at watch.html?s=ai until the AI desk replaces them.
+  if (new URLSearchParams(location.search).get("s") === "ai") location.replace("watch.html" + location.search + location.hash);
+</script>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="today.css">
 <script src="sync.js"></script>
 <script src="toolbar.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>Watch</h1>
-    <div class="updated" id="updated"></div>
-  </header>
-  <nav class="switch sub" hidden id="watch-switch" aria-label="Watch"><a href="./" aria-current="page">Watch list</a><a href="channels.html">Channels</a></nav>
-  <nav class="switch sub" id="ai-switch" aria-label="AI" hidden><a href="./?s=ai" aria-current="page">Videos</a><a href="news.html?s=ai">News</a></nav>
-  <div class="toolbar">
-    <div class="tabs" role="group" aria-label="View">
-      <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="count-new"></span></button>
-      <button class="tab" data-view="playing" aria-pressed="false">Playing<span class="count" id="count-playing"></span></button>
-      <button class="tab" data-view="later" aria-pressed="false">Later<span class="count" id="count-later"></span></button>
-      <button class="tab" data-view="favs" aria-pressed="false">★<span class="count" id="count-favs"></span></button>
-      <button class="tab" data-view="all" aria-pressed="false">All<span class="count" id="count-all"></span></button>
-    </div>
-    <select class="channel-filter" id="channel" aria-label="Filter by channel"></select>
+<main class="wrap front">
+  <h1 class="sr-only">Today's front page</h1>
+  <div class="front-grid">
+    <section class="cell lead" id="lead" aria-label="Today's review"><p class="loading">Loading…</p></section>
+    <section class="cell news" id="news" aria-label="News"></section>
+    <div class="cell lib" id="lib"></div>
+    <section class="cell ai" id="ai" aria-label="The AI desk" hidden></section>
   </div>
-  <div class="bulk" id="bulk" hidden><button class="tick" id="mark-all"></button></div>
-  <div class="warn" id="warn" hidden></div>
-  <main class="list" id="list"></main>
-</div>
-
-<script src="player.js"></script>
-<script>
-  // Everything here is stored on this device only. The AI section (./?s=ai)
-  // shares watched ticks with Videos but keeps its own Later list and filter.
-  // SECTION comes from player.js.
-  const PREFIX = SECTION ? `${SECTION}-` : "";
-  const KEYS = { watched: "watched-v1", later: `${PREFIX}later-v1`, channel: `${PREFIX}channel-v1` };
-  if (SECTION) {
-    document.title = "AI · The Margin";
-    document.querySelector("header h1").textContent = "AI";
-    document.getElementById("ai-switch").hidden = false;
-  } else {
-    document.getElementById("watch-switch").hidden = false;
-  }
-  const load = (key, fallback) => {
-    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
-  };
-  const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} };
-
-  let watched = new Set(load(KEYS.watched, []));
-  // Saved videos keep their full details so they survive after
-  // dropping out of the feed. Oldest-saved first, like a queue.
-  let later = load(KEYS.later, []);
-  let channel = load(KEYS.channel, "");
-  let view = "new";
-  let videos = [];
-
-  const isLater = id => later.some(v => v.id === id);
-  function saveState() {
-    store(KEYS.watched, [...watched]);
-    store(KEYS.later, later);
-  }
-
-  // Which videos belong in each tab, before the channel filter.
-  function inView(name) {
-    if (name === "new") return videos.filter(v => !watched.has(v.id) && !isLater(v.id));
-    if (name === "later") return later;
-    if (name === "playing") return getPlaying().filter(v => inSection(v) && !watched.has(v.id));
-    if (name === "favs") return getFavourites().filter(inSection).reverse();   // newest first
-    return videos;
-  }
-  const byChannel = list => channel ? list.filter(v => v.channel === channel) : list;
-  const belongs = v => inView(view).some(x => x.id === v.id) && (!channel || v.channel === channel);
-
-  function card(v) {
-    const player = makePlayer(v);
-
-    const laterBtn = el("button", { className: "tick later" });
-    const tick = el("button", { className: "tick" });
-    const node = el("article", { className: "card" }, [
-      player,
-      el("div", { className: "meta" }, [
-        el("div", { className: "text" }, [
-          el("p", { className: "title", textContent: v.title }),
-          el("div", { className: "sub", textContent: `${v.channel} · ${ago(v.published)}` }),
-        ]),
-        el("div", { className: "actions" }, [laterBtn, tick, favButton(v, () => { if (!belongs(v)) render(); else counts(); }), musicLink(v)]),
-      ]),
-    ]);
-
-    function paint() {
-      const w = watched.has(v.id), l = isLater(v.id);
-      node.classList.toggle("watched", w);
-      tick.textContent = w ? "Watched ✓" : "Mark watched";
-      laterBtn.classList.toggle("on", l);
-      laterBtn.textContent = l ? "Saved ✓" : "Watch later";
-    }
-    function afterChange() {
-      saveState();
-      if (belongs(v)) { paint(); counts(); } else render();
-    }
-
-    laterBtn.addEventListener("click", () => {
-      if (isLater(v.id)) later = later.filter(x => x.id !== v.id);
-      else { later.push(v); watched.delete(v.id); }
-      afterChange();
-    });
-    tick.addEventListener("click", () => {
-      if (watched.has(v.id)) watched.delete(v.id);
-      else { watched.add(v.id); later = later.filter(x => x.id !== v.id); clearProgress(v.id); }
-      afterChange();
-    });
-    paint();
-    return node;
-  }
-
-  function counts() {
-    for (const name of ["new", "playing", "later", "favs", "all"]) {
-      document.getElementById(`count-${name}`).textContent = byChannel(inView(name)).length;
-    }
-    updateBulk();
-  }
-
-  function buildChannelMenu() {
-    const select = document.getElementById("channel");
-    const names = [...new Set([...videos, ...later, ...getPlaying().filter(inSection), ...getFavourites().filter(inSection)].map(v => v.channel).filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-    if (channel && !names.includes(channel)) channel = "";
-    select.replaceChildren(
-      el("option", { value: "", textContent: "All channels" }),
-      ...names.map(n => el("option", { value: n, textContent: n })),
-    );
-    select.value = channel;
-  }
-
-  function render() {
-    const list = document.getElementById("list");
-    const shown = byChannel(inView(view));
-    counts();
-    if (!shown.length) {
-      const msgs = {
-        new: ["All caught up.", "That's everything. Go do something else."],
-        playing: ["Nothing in progress.", "Videos you've started but not finished show up here."],
-        later: ["Nothing saved.", "Tap “Watch later” on a video to keep it here."],
-        favs: ["No favourites yet.", "Tap “☆ Favourite” on any video to keep it here for good."],
-        all: ["Nothing here yet.", "Check back after the next update."],
-      };
-      const [title, text] = msgs[view];
-      list.replaceChildren(el("div", { className: "empty" }, [
-        el("strong", { textContent: title }), document.createTextNode(text),
-      ]));
-      return;
-    }
-    list.replaceChildren(...shown.map(card));
-  }
-
-
-  // "Mark all" on the New tab, for whatever the filter is showing.
-  // Turns into Undo for a few seconds afterwards.
-  let undo = null, undoTimer = null;
-  function clearUndo() { undo = null; clearTimeout(undoTimer); }
-  function updateBulk() {
-    const bulk = document.getElementById("bulk"), btn = document.getElementById("mark-all");
-    if (undo) { bulk.hidden = false; btn.textContent = `Undo — marked ${undo.length} as watched`; return; }
-    const n = view === "new" ? byChannel(inView("new")).length : 0;
-    bulk.hidden = !n;
-    btn.textContent = n === 1 ? "Mark as watched" : `Mark all ${n} as watched`;
-  }
-  document.getElementById("mark-all").addEventListener("click", () => {
-    if (undo) {
-      undo.forEach(id => watched.delete(id));
-      clearUndo();
-    } else {
-      undo = byChannel(inView("new")).map(x => x.id);
-      undo.forEach(id => watched.add(id));   // Playing hides watched videos, so Undo stays lossless
-      undoTimer = setTimeout(() => { undo = null; updateBulk(); }, 8000);
-    }
-    saveState();
-    render();
-  });
-
-  document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
-    view = btn.dataset.view;
-    clearUndo();
-    document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
-    render();
-  }));
-  document.getElementById("channel").addEventListener("change", e => {
-    channel = e.target.value;
-    clearUndo();
-    store(KEYS.channel, channel);
-    render();
-  });
-
-  // Coming back to this page (Back button, another tab, or the other device
-  // syncing) can show a copy from memory: re-read what's saved and redraw.
-  // If a video is playing, only update the counts so playback isn't interrupted.
-  let loaded = false;   // set once the video list has arrived
-  function refreshFromStorage() {
-    if (!loaded) return;
-    watched = new Set(load(KEYS.watched, []));
-    later = load(KEYS.later, []);
-    if (document.querySelector(".player iframe, .pseudo-fs")) return counts();
-    buildChannelMenu();
-    render();
-  }
-  let refreshTimer;
-  const refreshSoon = () => { clearTimeout(refreshTimer); refreshTimer = setTimeout(refreshFromStorage, 150); };
-  window.addEventListener("pageshow", e => { if (e.persisted) refreshSoon(); });
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshSoon(); });
-  window.addEventListener("storage", e => { if (["watched-v1", KEYS.later, "progress-v1", "favourites-v1"].includes(e.key)) refreshSoon(); });
-
-  fetch(`${PREFIX}videos.json?t=${Date.now()}`, { cache: "no-store" })
-    .then(r => r.json())
-    .then(data => {
-      videos = data.videos || [];
-      document.getElementById("updated").textContent = data.updated ? `Updated ${ago(data.updated)}` : "";
-      if (data.errors && data.errors.length) {
-        const warn = document.getElementById("warn");
-        warn.textContent = `Couldn't refresh: ${data.errors.join(", ")}`;
-        warn.hidden = false;
-      }
-      // Watched ticks are shared with the Channels page, so keep them, capped.
-      if (watched.size > 5000) { watched = new Set([...watched].slice(-5000)); saveState(); }
-      buildChannelMenu();
-      render();
-      loaded = true;
-    })
-    .catch(() => {
-      document.getElementById("list").replaceChildren(el("div", { className: "empty" }, [
-        el("strong", { textContent: "Couldn't load videos." }),
-        document.createTextNode("Try again in a bit."),
-      ]));
-    });
-</script>
+  <section class="watch" id="watch" aria-label="Watch" hidden></section>
+  <p class="uptodate">You're up to date. That's today's edition.</p>
+  <header class="today-meta"><div class="updated" id="updated"></div></header>
+</main>
+<script src="cp-data.js"></script>
+<script src="today.js"></script>
 <script src="updater.js"></script>
 </body>
 </html>

@@ -54,7 +54,7 @@ document.addEventListener("keydown", e => {
 
 
 // The page's section: "" for the main pages, "ai" for the AI section
-// (./?s=ai and news.html?s=ai). Videos carry their section, so each
+// (watch.html?s=ai and news.html?s=ai). Videos carry their section, so each
 // section's Playing and Favourites tabs only show their own videos.
 const SECTION = new URLSearchParams(location.search).get("s") === "ai" ? "ai" : "";
 const inSection = v => (v.section || "") === SECTION;

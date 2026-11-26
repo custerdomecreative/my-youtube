@@ -81,7 +81,7 @@
     return el("div", { class: "empty" },
       el("strong", { text: "Commonplace Book needs sync set up" }),
       el("p", { class: "hint", text: "Your highlights are kept in your private repository, never on the public site. Open Watch and tap “Update now” once to paste your GitHub token, then come back." }),
-      el("a", { class: "btn primary", href: "./", text: "Open sync setup" }));
+      el("a", { class: "btn primary", href: "watch.html", text: "Open sync setup" }));
   }
   // Cover image, or the title set in Newsreader on a tinted card.
   function coverEl(src, cls) {
@@ -280,6 +280,13 @@
           window.CPSuggest && src.highlights.length > 0 && el("button", { class: "btn small" + (CPSuggest.hasPending(src.id) ? " primary" : ""), type: "button",
             text: CPSuggest.hasPending(src.id) ? "Review suggested tags" : "Suggest tags",
             onclick: () => { if (picker.dataset.open === "suggest") { picker.replaceChildren(); picker.dataset.open = ""; render(); } else CPSuggest.panel(src, picker, render); } }),
+          src.kind === "book" && el("button", { class: "btn small", type: "button",
+            text: CP.pinnedSourceId() === src.id ? "Unpin" : "Set as now reading",
+            onclick: () => {
+              if (CP.pinnedSourceId() === src.id) { CP.unpinNowReading(); toast("Unpinned. Now reading follows your latest highlight."); }
+              else { CP.pinNowReading(src.id); toast("Set as now reading"); }
+              render();
+            } }),
           el("a", { class: "btn small", href: `#add?src=${encodeURIComponent(src.id)}`, text: "Add highlight" }),
           src.url && el("a", { class: "btn small", href: src.url, rel: "noreferrer", target: "_blank", text: "Open article" }))));
     return el("div", {}, el("a", { class: "back", href: "#library", text: "← Library" }), head, picker,
