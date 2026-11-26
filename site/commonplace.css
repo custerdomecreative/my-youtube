@@ -1,5 +1,5 @@
-/* Commonplace: uses the "evening shelf" tokens from style.css. Passages in Newsreader,
-   Aaron's own notes in the UI sans with a brass rule beside them. Mobile first. */
+/* Commonplace Book: uses the shared tokens from style.css. Passages in Newsreader,
+   Aaron's own notes in the UI sans with an accent rule beside them. Mobile first. */
 .sync-btn { all: unset; cursor: pointer; color: var(--muted); font-size: 12px; padding: 4px 0; }
 .sync-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sync-btn.attention { color: var(--accent); }
@@ -16,7 +16,7 @@ h2.section { font-family: var(--serif); font-size: 26px; font-weight: 600; margi
 .btn:hover { border-color: var(--muted); }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
 .btn.small { min-height: 34px; padding: 5px 11px; font-size: 13px; border-radius: 8px; }
-.btn.danger { color: #c0392b; }
+.btn.danger { color: var(--danger); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .star { all: unset; cursor: pointer; font-size: 22px; line-height: 1; padding: 6px; color: var(--muted); min-width: 34px; text-align: center; }
 .star.on { color: var(--accent); }
@@ -128,7 +128,7 @@ details.more summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .rv-card .tags { justify-content: center; }
 .rv-tools { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
 .rv-actions {
-  position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  position: sticky; bottom: var(--tabbar-h); display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
   padding: 10px 0 calc(env(safe-area-inset-bottom) + 6px); background: linear-gradient(to top, var(--bg) 78%, transparent);
 }
 .rv-actions .btn { min-height: 56px; font-size: 16px; flex-direction: column; line-height: 1.15; }
@@ -136,10 +136,11 @@ details.more summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .rv-done { text-align: center; padding: 64px 12px; }
 .rv-done .big-num { font-size: 34px; }
 .toast {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 24px); z-index: 50;
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(max(var(--tabbar-h), env(safe-area-inset-bottom)) + 24px); z-index: 50;
   background: var(--ink); color: var(--bg); border-radius: 10px; padding: 10px 16px; font-size: 14px; max-width: 90vw;
 }
 .toast[hidden] { display: none; }
+@media (max-width: 719px) { .rv-actions { padding-bottom: 8px; } }
 .sub-switch { display: flex; gap: 8px; margin: 0 0 14px; }
 @media (max-width: 430px) {
   .rv-passage { font-size: 23px; }
