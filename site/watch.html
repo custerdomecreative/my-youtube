@@ -105,6 +105,7 @@
         el("div", { className: "actions" }, [laterBtn, tick, favButton(v, () => { if (!belongs(v)) render(); else counts(); }), musicLink(v)]),
       ]),
     ]);
+    node.dataset.id = v.id;
 
     function paint() {
       const w = watched.has(v.id), l = isLater(v.id);
@@ -228,6 +229,32 @@
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshSoon(); });
   window.addEventListener("storage", e => { if (["watched-v1", KEYS.later, "progress-v1", "favourites-v1"].includes(e.key)) refreshSoon(); });
 
+  // The front page links to a video as watch.html?v=<id>: find it and start it. The address keeps ?v= until
+  // the video is found, because a sync or update can reload the page first and would lose it.
+  function openWanted() {
+    const id = new URLSearchParams(location.search).get("v");
+    if (!id) return;
+    const find = () => document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    let node = find();
+    if (!node) {   // hidden by the channel filter or sitting in another tab: look everywhere
+      channel = ""; store(KEYS.channel, ""); buildChannelMenu();
+      for (const name of ["later", "new", "playing", "favs", "all"]) {
+        view = name;
+        document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === name)));
+        render();
+        node = find();
+        if (node) break;
+      }
+    }
+    const u = new URL(location.href);
+    u.searchParams.delete("v");
+    history.replaceState(null, "", u.pathname + u.search + u.hash);
+    if (!node) return;
+    node.scrollIntoView({ block: "center" });
+    const play = node.querySelector(".player > button");
+    if (play) play.click();
+  }
+
   fetch(`${PREFIX}videos.json?t=${Date.now()}`, { cache: "no-store" })
     .then(r => r.json())
     .then(data => {
@@ -242,6 +269,7 @@
       if (watched.size > 5000) { watched = new Set([...watched].slice(-5000)); saveState(); }
       buildChannelMenu();
       render();
+      openWanted();
       loaded = true;
     })
     .catch(() => {

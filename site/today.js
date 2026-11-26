@@ -177,12 +177,26 @@
       return { stories: JSON.parse(new TextDecoder().decode(plain)).stories || [] };
     } catch (e) { return { error: true }; }
   }
-  // Today's paper: stories from the last day that you haven't read or saved for later, newest first.
-  function edition(stories, laterKey) {
+  // Stories from the last day that you haven't read or saved for later, newest first.
+  function recent(stories, laterKey) {
     const read = new Set(load("news-read-v1", [])), later = new Set(load(laterKey, []).map(s => s.id));
     return stories
       .filter(s => !read.has(s.id) && !later.has(s.id) && (!s.published || Date.now() - new Date(s.published) < EDITION_HOURS * 3600000))
       .sort((a, b) => (a.published < b.published ? 1 : -1));
+  }
+  // Today's paper leans towards actual news: RTÉ, BBC and the NYT make up the paper, plus at most one rugby or
+  // football story from BBC Sport and one from VGC. The Verge and the rest of the sport (cricket, golf, ...) stay in
+  // All stories. Both extras are newest-first picks, so a quiet day simply has fewer.
+  const NEWS_SOURCES = new Set(["RTÉ News", "BBC World", "NYT"]);
+  const WANTED_SPORT = /\b(rugby|six nations|munster|leinster|ulster|connacht|urc|champions cup|british and irish lions|all blacks|springboks|football|premier league|champions league|europa league|fa cup|league cup|carabao cup|world cup|league of ireland|women's super league|arsenal|aston villa|celtic|chelsea|everton|liverpool|manchester (city|united)|man (city|utd|united)|newcastle united|tottenham|spurs|west ham)\b/i;
+  const OTHER_SPORT = /\b(cricket|ashes|test match|ipl|golf|tennis|f1|formula (1|one)|snooker|darts|boxing|ufc|cycling|athletics|nfl|nba|mlb|nhl)\b/i;
+  const wantedSport = s => { const t = `${s.title} ${s.summary || ""}`; return WANTED_SPORT.test(t) && !(OTHER_SPORT.test(t) && !/\b(rugby|football)\b/i.test(t)); };
+  function todaysPaper(stories, laterKey) {
+    const list = recent(stories, laterKey);
+    const news = list.filter(s => NEWS_SOURCES.has(s.source));
+    const sport = list.find(s => s.source === "BBC Sport" && wantedSport(s));
+    const games = list.find(s => s.source === "VGC");
+    return [...news, ...[sport, games].filter(Boolean)].sort((a, b) => (a.published < b.published ? 1 : -1));
   }
   function minutesToRead(s) {
     if (!Array.isArray(s.text)) return 0;
@@ -201,20 +215,26 @@
     if (!newsData) return void box.append(el("p", { class: "loading", text: "Loading…" }));
     if (newsData.locked) return void box.append(el("p", { class: "quiet", text: "Enter your news password to see today's stories." }), el("a", { class: "link-strong", href: "news.html", text: "Open News →" }));
     if (newsData.error) return void box.append(el("p", { class: "quiet", text: "News isn't available right now." }), el("a", { class: "link-strong", href: "news.html", text: "Open News →" }));
-    const paper = edition(newsData.stories, "news-later-v1");
+    const paper = todaysPaper(newsData.stories, "news-later-v1");
     if (!paper.length) return void box.append(el("p", { class: "quiet", text: "You've read today's paper." }), el("a", { class: "link-strong", href: "news.html", text: "All stories →" }));
 
-    const lead = paper.find(s => s.summary && s.summary.trim()) || paper[0];
+    const isNews = s => NEWS_SOURCES.has(s.source);
+    const lead = paper.find(s => isNews(s) && s.summary && s.summary.trim()) || paper.find(isNews) || paper[0];
     box.append(el("article", { class: "lead-story" },
       el("a", { class: "h", href: storyHref(lead), ...storyAttrs(lead), text: lead.title }),
       lead.summary && el("p", { class: "sum", text: lead.summary }),
       el("div", { class: "src", text: sourceLine(lead) })));
     // 3 to 5 headlines, no more than two from one source so the front page isn't one site.
-    const perSource = { [lead.source]: 1 }, heads = [];
+    const perSource = { [lead.source]: 1 }, newsHeads = [], extras = paper.filter(s => s !== lead && !isNews(s));
     for (const s of paper) {
-      if (s === lead || heads.length >= 5 || (perSource[s.source] || 0) >= 2) continue;
+      if (s === lead || !isNews(s) || (perSource[s.source] || 0) >= 2) continue;
       perSource[s.source] = (perSource[s.source] || 0) + 1;
-      heads.push(s);
+      newsHeads.push(s);
+    }
+    const heads = [];
+    for (let i = 0; i < 5; i++) {
+      const next = (i === 2 || i === 4) && extras.length ? extras.shift() : newsHeads.shift() || extras.shift();
+      if (next) heads.push(next);
     }
     heads.forEach((s, i) => box.append(el("article", { class: `hl${i >= 3 ? " extra" : ""}` },
       el("a", { class: "h", href: storyHref(s), ...storyAttrs(s), text: s.title }), el("div", { class: "src", text: sourceLine(s) }))));
@@ -236,7 +256,7 @@
       }
     }
     if (aiNews && aiNews.stories) {
-      const s = edition(aiNews.stories, "ai-news-later-v1")[0];
+      const s = recent(aiNews.stories, "ai-news-later-v1")[0];
       if (s) items.push(el("article", {}, kicker(`News · ${s.source}`, "small"),
         el("a", { class: "h", href: storyHref(s, true), ...storyAttrs(s), text: s.title }),
         minutesToRead(s) ? el("div", { class: "src", text: `${minutesToRead(s)} min read` }) : null));
@@ -245,7 +265,7 @@
       const watched = new Set(load("watched-v1", [])), later = new Set(load("ai-later-v1", []).map(v => v.id));
       const v = aiVideos.find(x => !watched.has(x.id) && !later.has(x.id));
       if (v) items.push(el("article", {}, kicker(`Video · ${v.channel}`, "small"),
-        el("a", { class: "ai-video", href: "watch.html?s=ai" }, el("img", { class: "thumb small", src: v.thumbnail, alt: "", loading: "lazy" }),
+        el("a", { class: "ai-video", href: `watch.html?s=ai&v=${encodeURIComponent(v.id)}` }, el("img", { class: "thumb small", src: v.thumbnail, alt: "", loading: "lazy" }),
           el("span", { class: "h", text: v.title }))));
     }
     box.hidden = !items.length;
@@ -265,7 +285,7 @@
       el("div", { class: "watch-head" }, kicker("Watch"), el("a", { href: "watch.html#later", text: `Your watch list (${saved.length}) →` })),
       el("div", { class: "watch-items" }, saved.slice(-3).reverse().map(v => {
         const len = progress[v.id] && progress[v.id][1] ? duration(progress[v.id][1]) : "";
-        return el("a", { class: "watch-item", href: "watch.html#later" }, el("img", { class: "thumb", src: v.thumbnail, alt: "", loading: "lazy" }),
+        return el("a", { class: "watch-item", href: `watch.html?v=${encodeURIComponent(v.id)}` }, el("img", { class: "thumb", src: v.thumbnail, alt: "", loading: "lazy" }),
           el("div", {}, el("div", { class: "h", text: v.title }), el("div", { class: "src", text: [v.channel, len || ago(v.published)].filter(Boolean).join(" · ") })));
       })));
   }

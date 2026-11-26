@@ -359,12 +359,26 @@
     render();
     openWanted();
   }
-  // The front page links to a story as news.html?story=<id>: open it here, once.
+  // The front page links to a story as news.html?story=<id>: open it here. The address keeps ?story=
+  // until the story is open, because a sync or update can reload the page first and would lose it.
   function openWanted() {
     const id = new URLSearchParams(location.search).get("story");
     if (!id) return;
-    history.replaceState(null, "", location.pathname + (SECTION ? "?s=ai" : ""));
-    const node = document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    const find = () => document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    let node = find();
+    if (!node) {   // hidden by the source filter or sitting in another tab: look everywhere
+      source = ""; store(KEYS.source, ""); buildSourceMenu();
+      for (const name of ["new", "later", "all"]) {
+        view = name;
+        document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === name)));
+        render();
+        node = find();
+        if (node) break;
+      }
+    }
+    const u = new URL(location.href);
+    u.searchParams.delete("story");
+    history.replaceState(null, "", u.pathname + u.search + u.hash);
     if (!node) return;
     node.scrollIntoView();
     const btn = node.querySelector(".story-actions > :first-child");
