@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="build" content="__BUILD__">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI · The Margin</title>
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="The Margin">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="news.css">
+<script src="sync.js"></script>
+<script src="toolbar.js"></script>
+<style>
+  .note { padding: 16px 0; border-top: 1px solid var(--line); }
+  .note:first-child { border-top: 0; padding-top: 14px; }
+  .note blockquote { margin: 0 0 8px; font: 400 19px/1.45 var(--serif); overflow-wrap: anywhere; }
+  .note .cite { color: var(--muted); font-size: 13px; }
+  .note .cite a { color: inherit; }
+  .note .tag { display: inline-block; margin-left: 8px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; }
+  .note .own { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>AI</h1>
+    <div class="updated" id="updated"></div>
+  </header>
+  <nav class="switch sub" id="desk" aria-label="The AI desk">
+    <a href="ai.html#news" data-tab="news" aria-current="page">News</a><a href="ai.html#videos" data-tab="videos">Videos</a><a href="ai.html#notes" data-tab="notes">Notes</a>
+  </nav>
+
+  <!-- News: the AI feed, with the same password and reader as News -->
+  <section id="p-news">
+    <section class="unlock" id="unlock" hidden>
+      <p id="unlock-msg">Enter your news password. You'll only need to do this once on each device.</p>
+      <form id="unlock-form">
+        <input type="password" id="password" autocomplete="current-password" placeholder="Password" aria-label="Password">
+        <button type="submit">Unlock</button>
+      </form>
+      <div class="error" id="unlock-error"></div>
+    </section>
+    <div id="news-app" hidden>
+      <div class="toolbar">
+        <div class="tabs" role="group" aria-label="News view">
+          <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="ncount-new"></span></button>
+          <button class="tab" data-view="later" aria-pressed="false">Later<span class="count" id="ncount-later"></span></button>
+          <button class="tab" data-view="all" aria-pressed="false">All<span class="count" id="ncount-all"></span></button>
+        </div>
+      </div>
+      <div class="bulk" id="nbulk" hidden><button class="tick" id="nmark-all"></button></div>
+      <div class="warn" id="nwarn" hidden></div>
+      <main class="list" id="nlist"></main>
+    </div>
+  </section>
+
+  <!-- Videos: the AI channels -->
+  <section id="p-videos" hidden>
+    <div class="toolbar">
+      <div class="tabs" role="group" aria-label="Video view">
+        <button class="tab" data-view="new" aria-pressed="true">New<span class="count" id="vcount-new"></span></button>
+        <button class="tab" data-view="playing" aria-pressed="false">Playing<span class="count" id="vcount-playing"></span></button>
+        <button class="tab" data-view="later" aria-pressed="false">Later<span class="count" id="vcount-later"></span></button>
+        <button class="tab" data-view="favs" aria-pressed="false">★<span class="count" id="vcount-favs"></span></button>
+        <button class="tab" data-view="all" aria-pressed="false">All<span class="count" id="vcount-all"></span></button>
+      </div>
+    </div>
+    <div class="bulk" id="vbulk" hidden><button class="tick" id="vmark-all"></button></div>
+    <div class="warn" id="vwarn" hidden></div>
+    <main class="list" id="vlist"></main>
+  </section>
+
+  <!-- Notes: your own highlights tagged ai or ai-parallel (read on this device, never sent anywhere) -->
+  <section id="p-notes" hidden>
+    <main class="list" id="notes"></main>
+  </section>
+</div>
+
+<script src="cp-data.js"></script>
+<script src="news-core.js"></script>
+<script src="player.js"></script>
+<script>
+  // The AI desk: AI news, AI videos and your own notes on AI, in one place. Everything here is stored on this
+  // device only. Read and watched ticks are shared with News and Watch; the Read Later and Watch Later lists are
+  // the AI ones (ai-news-later-v1, ai-later-v1).
+  const { load, store } = NewsCore;
+  const $ = id => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+
+  // ---------- Tabs: News / Videos / Notes ----------
+  let tab = "news";
+  function showTab(name) {
+    tab = name;
+    for (const t of ["news", "videos", "notes"]) $(`p-${t}`).hidden = t !== name;
+    document.querySelectorAll("#desk a").forEach(a => {
+      if (a.dataset.tab === name) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
+  }
+  document.querySelectorAll("#desk a").forEach(a => a.addEventListener("click", e => {
+    e.preventDefault();
+    showTab(a.dataset.tab);
+    history.replaceState(null, "", location.pathname + location.search + `#${a.dataset.tab}`);
+  }));
+  showTab(params.get("v") ? "videos" : ["news", "videos", "notes"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "news");
+
+  // ---------- News ----------
+  const NK = { read: "news-read-v1", later: "ai-news-later-v1" };
+  const ns = {
+    read: new Set(load(NK.read, [])),
+    later: load(NK.later, []),
+    save() { store(NK.read, [...this.read]); store(NK.later, this.later); },
+    changed(s, paint) { if (nBelongs(s)) { paint(); nCounts(); } else nRender(); },
+  };
+  let nView = "new", stories = [], encrypted = null, newsReady = false;
+  const nIsLater = id => ns.later.some(s => s.id === id);
+  function nInView(name) {
+    if (name === "new") return stories.filter(s => !ns.read.has(s.id) && !nIsLater(s.id));
+    if (name === "later") return ns.later;
+    return stories;
+  }
+  const nBelongs = s => nInView(nView).some(x => x.id === s.id);
+  function nSetView(name) {
+    nView = name; nClearUndo();
+    document.querySelectorAll("#news-app .tab").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === name)));
+  }
+  function nCounts() {
+    for (const name of ["new", "later", "all"]) $(`ncount-${name}`).textContent = nInView(name).length;
+    nUpdateBulk();
+  }
+  function nRender() {
+    const shown = nInView(nView);
+    nCounts();
+    if (!shown.length) {
+      const [title, text] = { new: ["All caught up.", "That's the AI news for now."], later: ["Nothing saved.", "Tap “Read later” on a story to keep it here."],
+        all: ["Nothing here yet.", "Check back after the next update."] }[nView];
+      $("nlist").replaceChildren(el("div", { className: "empty" }, [el("strong", { textContent: title }), document.createTextNode(text)]));
+      return;
+    }
+    $("nlist").replaceChildren(...shown.map(s => NewsCore.storyCard(s, ns)));
+  }
+  let nUndo = null, nUndoTimer = null;
+  function nClearUndo() { nUndo = null; clearTimeout(nUndoTimer); }
+  function nUpdateBulk() {
+    if (nUndo) { $("nbulk").hidden = false; $("nmark-all").textContent = `Undo — marked ${nUndo.length} as read`; return; }
+    const n = nView === "new" ? nInView("new").length : 0;
+    $("nbulk").hidden = !n;
+    $("nmark-all").textContent = n === 1 ? "Mark as read" : `Mark all ${n} as read`;
+  }
+  $("nmark-all").addEventListener("click", () => {
+    if (nUndo) { nUndo.forEach(id => ns.read.delete(id)); nClearUndo(); }
+    else {
+      nUndo = nInView("new").map(x => x.id);
+      nUndo.forEach(id => ns.read.add(id));
+      nUndoTimer = setTimeout(() => { nUndo = null; nUpdateBulk(); }, 8000);
+    }
+    ns.save();
+    nRender();
+  });
+  document.querySelectorAll("#news-app .tab").forEach(b => b.addEventListener("click", () => { nSetView(b.dataset.view); nRender(); }));
+
+  NewsCore.wireUnlock({ form: $("unlock-form"), input: $("password"), errorEl: $("unlock-error"), getEnc: () => encrypted, onData: startNews });
+  function showUnlock(message) {
+    $("news-app").hidden = true;
+    $("unlock").hidden = false;
+    if (message) $("unlock-msg").textContent = message;
+  }
+  function startNews(data) {
+    stories = data.stories || [];
+    if (ns.read.size > 5000) { ns.read = new Set([...ns.read].slice(-5000)); ns.save(); }
+    $("unlock").hidden = true;
+    $("news-app").hidden = false;
+    newsReady = true;
+    nRender();
+    openStory();
+  }
+  // The front page links to a story as ai.html?story=<id>. The address keeps ?story= until the story is open,
+  // because a sync or update can reload the page first and would lose it.
+  function openStory() {
+    const id = params.get("story");
+    if (!id) return;
+    const find = () => document.querySelector(`#nlist [data-id="${CSS.escape(id)}"]`);
+    let node = find();
+    for (const name of ["new", "later", "all"]) {
+      if (node) break;
+      nSetView(name); nRender(); node = find();
+    }
+    clearParam("story");
+    if (!node) return;
+    node.scrollIntoView();
+    const btn = node.querySelector(".story-actions > :first-child");
+    if (btn && btn.tagName === "BUTTON") btn.click();
+  }
+  function clearParam(name) {
+    const u = new URL(location.href);
+    u.searchParams.delete(name);
+    history.replaceState(null, "", u.pathname + u.search + u.hash);
+  }
+  (async () => {
+    try {
+      const status = await fetch(`ai-status.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      if (status && status.configured === false) {
+        showUnlock("News isn't set up yet: the NEWS_PASSWORD secret hasn't been added to the repository.");
+        $("unlock-form").hidden = true;
+        return;
+      }
+      const failed = (status?.sources || []).filter(s => s.error).map(s => s.name);
+      if (failed.length) { $("nwarn").textContent = `Couldn't refresh: ${failed.join(", ")}`; $("nwarn").hidden = false; }
+      encrypted = await fetch(`ai-news.enc.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
+      const key = await NewsCore.savedKey();
+      if (key) {
+        try { return startNews(await NewsCore.decrypt(encrypted, key)); } catch (e) { /* password changed */ }
+      }
+      showUnlock();
+    } catch (e) {
+      showUnlock("Couldn't load the AI news. Try again in a bit.");
+      $("unlock-form").hidden = true;
+    }
+  })();
+
+  // ---------- Videos ----------
+  const VK = { watched: "watched-v1", later: "ai-later-v1" };
+  let watched = new Set(load(VK.watched, [])), vLater = load(VK.later, []), vView = "new", videos = [], videosReady = false;
+  const isAi = v => v.section === "ai";
+  const vIsLater = id => vLater.some(v => v.id === id);
+  function vSave() { store(VK.watched, [...watched]); store(VK.later, vLater); }
+  function vInView(name) {
+    if (name === "new") return videos.filter(v => !watched.has(v.id) && !vIsLater(v.id));
+    if (name === "later") return vLater;
+    if (name === "playing") return getPlaying().filter(v => isAi(v) && !watched.has(v.id));
+    if (name === "favs") return getFavourites().filter(isAi).reverse();   // newest first
+    return videos;
+  }
+  const vBelongs = v => vInView(vView).some(x => x.id === v.id);
+  function vSetView(name) {
+    vView = name; vClearUndo();
+    document.querySelectorAll("#p-videos .tab").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === name)));
+  }
+  function videoCard(v) {
+    const player = makePlayer(v);
+    const laterBtn = el("button", { className: "tick later" });
+    const tick = el("button", { className: "tick" });
+    const node = el("article", { className: "card" }, [
+      player,
+      el("div", { className: "meta" }, [
+        el("div", { className: "text" }, [
+          el("p", { className: "title", textContent: v.title }),
+          el("div", { className: "sub", textContent: `${v.channel} · ${ago(v.published)}` }),
+        ]),
+        el("div", { className: "actions" }, [laterBtn, tick, favButton(v, () => { if (!vBelongs(v)) vRender(); else vCounts(); }), musicLink(v)]),
+      ]),
+    ]);
+    node.dataset.id = v.id;
+    function paint() {
+      const w = watched.has(v.id), l = vIsLater(v.id);
+      node.classList.toggle("watched", w);
+      tick.textContent = w ? "Watched ✓" : "Mark watched";
+      laterBtn.classList.toggle("on", l);
+      laterBtn.textContent = l ? "Saved ✓" : "Watch later";
+    }
+    function afterChange() { vSave(); if (vBelongs(v)) { paint(); vCounts(); } else vRender(); }
+    laterBtn.addEventListener("click", () => {
+      if (vIsLater(v.id)) vLater = vLater.filter(x => x.id !== v.id);
+      else { vLater.push(v); watched.delete(v.id); }
+      afterChange();
+    });
+    tick.addEventListener("click", () => {
+      if (watched.has(v.id)) watched.delete(v.id);
+      else { watched.add(v.id); vLater = vLater.filter(x => x.id !== v.id); clearProgress(v.id); }
+      afterChange();
+    });
+    paint();
+    return node;
+  }
+  function vCounts() {
+    for (const name of ["new", "playing", "later", "favs", "all"]) $(`vcount-${name}`).textContent = vInView(name).length;
+    vUpdateBulk();
+  }
+  function vRender() {
+    const shown = vInView(vView);
+    vCounts();
+    if (!shown.length) {
+      const [title, text] = { new: ["All caught up.", "That's every AI video for now."], playing: ["Nothing in progress.", "Videos you've started but not finished show up here."],
+        later: ["Nothing saved.", "Tap “Watch later” on a video to keep it here."], favs: ["No favourites yet.", "Tap “☆ Favourite” on any video to keep it here for good."],
+        all: ["Nothing here yet.", "Check back after the next update."] }[vView];
+      $("vlist").replaceChildren(el("div", { className: "empty" }, [el("strong", { textContent: title }), document.createTextNode(text)]));
+      return;
+    }
+    $("vlist").replaceChildren(...shown.map(videoCard));
+  }
+  let vUndo = null, vUndoTimer = null;
+  function vClearUndo() { vUndo = null; clearTimeout(vUndoTimer); }
+  function vUpdateBulk() {
+    if (vUndo) { $("vbulk").hidden = false; $("vmark-all").textContent = `Undo — marked ${vUndo.length} as watched`; return; }
+    const n = vView === "new" ? vInView("new").length : 0;
+    $("vbulk").hidden = !n;
+    $("vmark-all").textContent = n === 1 ? "Mark as watched" : `Mark all ${n} as watched`;
+  }
+  $("vmark-all").addEventListener("click", () => {
+    if (vUndo) { vUndo.forEach(id => watched.delete(id)); vClearUndo(); }
+    else {
+      vUndo = vInView("new").map(x => x.id);
+      vUndo.forEach(id => watched.add(id));   // Playing hides watched videos, so Undo stays lossless
+      vUndoTimer = setTimeout(() => { vUndo = null; vUpdateBulk(); }, 8000);
+    }
+    vSave();
+    vRender();
+  });
+  document.querySelectorAll("#p-videos .tab").forEach(b => b.addEventListener("click", () => { vSetView(b.dataset.view); vRender(); }));
+
+  // The front page links to a video as ai.html?v=<id>: find it and start it. The address keeps ?v= until found.
+  function openVideo() {
+    const id = params.get("v");
+    if (!id) return;
+    const find = () => document.querySelector(`#vlist [data-id="${CSS.escape(id)}"]`);
+    let node = find();
+    for (const name of ["later", "new", "playing", "favs", "all"]) {
+      if (node) break;
+      vSetView(name); vRender(); node = find();
+    }
+    clearParam("v");
+    if (!node) return;
+    node.scrollIntoView({ block: "center" });
+    const play = node.querySelector(".player > button");
+    if (play) play.click();
+  }
+  fetch(`ai-videos.json?t=${Date.now()}`, { cache: "no-store" })
+    .then(r => r.json())
+    .then(data => {
+      videos = data.videos || [];
+      $("updated").textContent = data.updated ? `Updated ${ago(data.updated)}` : "";
+      if (data.errors && data.errors.length) { $("vwarn").textContent = `Couldn't refresh: ${data.errors.join(", ")}`; $("vwarn").hidden = false; }
+      if (watched.size > 5000) { watched = new Set([...watched].slice(-5000)); vSave(); }
+      vRender();
+      openVideo();
+      videosReady = true;
+    })
+    .catch(() => {
+      $("vlist").replaceChildren(el("div", { className: "empty" }, [el("strong", { textContent: "Couldn't load videos." }), document.createTextNode("Try again in a bit.")]));
+    });
+
+  // ---------- Notes: your highlights tagged ai or ai-parallel ----------
+  const libraryLink = id => `commonplace.html#library/${encodeURIComponent(id)}`;
+  function renderNotes() {
+    const box = $("notes");
+    const placeholder = text => box.replaceChildren(el("div", { className: "empty" }, [el("strong", { textContent: "No notes yet." }), document.createTextNode(text)]));
+    if (!CP.hasToken() || !CP.hasHighlightData()) return placeholder("Your highlights tagged ai or ai-parallel will appear here once Commonplace has synced.");
+    const mine = CP.allHighlights().filter(x => x.h.text && x.h.tags.some(t => t === "ai" || t === "ai-parallel"))
+      .sort((a, b) => ((a.h.created || "") < (b.h.created || "") ? 1 : -1));
+    if (!mine.length) return placeholder("Tag a highlight “ai” or “ai-parallel” in the Commonplace Book and it will show up here.");
+    box.replaceChildren(...mine.map(({ src, h }) => el("article", { className: "note" }, [
+      el("blockquote", { textContent: `“${h.text}”` }),
+      el("div", { className: "cite" }, [
+        document.createTextNode(src.author && src.kind !== "thoughts" ? `${src.author}, ` : ""),
+        el("a", { href: libraryLink(src.id) }, [el("i", { textContent: src.title })]),
+        ...h.tags.filter(t => t === "ai" || t === "ai-parallel").map(t => el("span", { className: "tag", textContent: t })),
+      ]),
+      h.note ? el("p", { className: "own", textContent: h.note }) : document.createTextNode(""),
+    ])));
+  }
+  renderNotes();
+  CP.onChange(() => { clearTimeout(renderNotes.t); renderNotes.t = setTimeout(renderNotes, 200); });
+  CP.onStatus(() => { clearTimeout(renderNotes.t); renderNotes.t = setTimeout(renderNotes, 200); });
+  CP.init();
+
+  // ---------- Coming back to the page ----------
+  // Back button, another tab, or another device syncing can show a copy from memory: re-read what's saved.
+  // An open article or a playing video is left alone, so only the counts move.
+  function refreshFromStorage() {
+    ns.read = new Set(load(NK.read, [])); ns.later = load(NK.later, []);
+    watched = new Set(load(VK.watched, [])); vLater = load(VK.later, []);
+    if (newsReady) { if (document.querySelector("#nlist .reader")) nCounts(); else nRender(); }
+    if (videosReady) { if (document.querySelector(".player iframe, .pseudo-fs")) vCounts(); else vRender(); }
+  }
+  let refreshTimer;
+  const refreshSoon = () => { clearTimeout(refreshTimer); refreshTimer = setTimeout(refreshFromStorage, 150); };
+  window.addEventListener("pageshow", e => { if (e.persisted) refreshSoon(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshSoon(); });
+  window.addEventListener("storage", e => { if ([NK.read, NK.later, VK.watched, VK.later, "progress-v1", "favourites-v1"].includes(e.key)) refreshSoon(); });
+</script>
+<script src="updater.js"></script>
+</body>
+</html>
