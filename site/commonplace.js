@@ -444,17 +444,17 @@
     return el("div", {}, input, filters, results);
   }
 
-  // ---------- Import (Kindle My Clippings.txt) ----------
+  // ---------- Import (Kindle My Clippings.txt, or a book's notes exported from the Kindle app) ----------
   function importView() {
     const out = el("div");
-    const pick = el("input", { type: "file", accept: ".txt,text/plain", id: "clip-file", "aria-label": "My Clippings.txt" });
+    const pick = el("input", { type: "file", accept: ".txt,.html,.htm,text/plain,text/html", id: "clip-file", "aria-label": "My Clippings.txt or a Kindle notebook export" });
     pick.addEventListener("change", async () => {
       const file = pick.files && pick.files[0];
       if (!file) return;
       out.replaceChildren(el("p", { class: "hint", text: "Reading…" }));
       let parsed;
-      try { parsed = CPKindle.parseClippings(await file.text()); } catch (e) { parsed = null; }
-      if (!parsed || !parsed.entries.length) return out.replaceChildren(el("div", { class: "panel" }, el("p", { text: "That doesn't look like a Kindle My Clippings.txt file. Nothing was changed." })));
+      try { const raw = await file.text(); parsed = CPKindle.isNotebookHtml(raw) ? CPKindle.parseNotebook(raw) : CPKindle.parseClippings(raw); } catch (e) { parsed = null; }
+      if (!parsed || !parsed.entries.length) return out.replaceChildren(el("div", { class: "panel" }, el("p", { text: "That doesn't look like a Kindle My Clippings.txt or a notebook export from the Kindle app. Nothing was changed." })));
       const plan = CPKindle.planImport(CPKindle.buildBooks(parsed.entries, CP), CP), t = plan.totals;
       const changed = plan.books.filter(b => b.add.length || b.edit.length || b.noteFill.length);
       const extras = [t.edited && `${plural(t.edited, "edited passage")} updated`, t.notes && `${plural(t.notes, "note")} attached`,
@@ -491,7 +491,9 @@
     return el("div", {},
       el("a", { class: "back", href: "#library", text: "← Library" }),
       el("h2", { class: "section", text: "Import Kindle clippings" }),
-      el("p", { class: "hint", text: "Connect your Kindle to your Mac, open its documents folder, and choose My Clippings.txt. It lists everything you've ever highlighted, so it's safe to import again whenever you like: only new highlights are added, and your own notes and tags are never changed." }),
+      el("p", { class: "hint", text: "Without a cable: in the Kindle app on your phone, open a book, tap Notebook, then the share button and Export Notebook, and email it to yourself. Save the attached .html file to Files and choose it here. It holds one book." }),
+      el("p", { class: "hint", text: "With a cable: connect your Kindle to your Mac, open its documents folder, and choose My Clippings.txt. It lists everything you've ever highlighted." }),
+      el("p", { class: "hint", text: "Either way it's safe to import again whenever you like: only new highlights are added, and your own notes and tags are never changed." }),
       el("div", { class: "panel" }, pick), out);
   }
 
