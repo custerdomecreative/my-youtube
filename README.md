@@ -111,8 +111,10 @@ uses the same device-only token as Sync, so a device that has Sync set up
 already has this. A device without one shows "Commonplace needs sync set up"
 with a link to where the token is entered (Watch → Update now).
 
-- **Kindle import:** connect the Kindle to the Mac, open its `documents`
-  folder, copy `My Clippings.txt`, then Library → Import Kindle and choose it.
+- **Kindle import:** either connect the Kindle to the Mac, open its `documents`
+  folder, copy `My Clippings.txt`, or, with no cable, use the Kindle app's
+  Notebook → Export Notebook (an `.html` file, one book at a time) and email it
+  to yourself. Then Library → Import Kindle and choose the file.
   The page shows a preview ("312 highlights in 9 books, 41 new") before saving.
   Import is safe to repeat: the same passage is never added twice, a passage
   you extended or trimmed on the Kindle updates the existing highlight, and

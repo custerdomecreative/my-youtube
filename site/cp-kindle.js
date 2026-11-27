@@ -81,6 +81,52 @@
     return { entries, skipped };
   }
 
+  // ---------- The Kindle app's "Export Notebook" HTML (iPhone, iPad, Android, desktop app) ----------
+  const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+  const decodeEntities = s => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) =>
+    e[0] === "#" ? String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : +e.slice(1)) : (ENTITIES[e.toLowerCase()] ?? m));
+  const htmlText = s => decodeEntities(s.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "")).replace(/\u00a0/g, " ");
+  const isNotebookHtml = raw => /class="noteHeading"/.test(String(raw)) && /class="bookTitle"/.test(String(raw));
+
+  // The same result as parseClippings, so the rest of the import (grouping, duplicates, notes) is shared.
+  // The app's file has no "added on" dates, and gives each highlight its start location only; a note sits
+  // right after its highlight at a nearby location, so a note takes its highlight's location to find it again.
+  function parseNotebook(raw) {
+    const html = String(raw);
+    const entries = [], skipped = { bookmarks: 0, empty: 0, other: 0 };
+    const pick = cls => { const m = html.match(new RegExp(`<div class="${cls}">([\\s\\S]*?)</div>`)); return m ? htmlText(m[1]).replace(/\s+/g, " ").trim() : ""; };
+    const title = pick("bookTitle");
+    if (!title) return { entries, skipped };
+    const author = pick("authors").split(/\s*;\s*/).filter(Boolean)
+      .map(a => (a.includes(",") ? a.split(",").map(x => x.trim()).reverse().join(" ") : a)).join(" & ");
+    let head = null, lastHighlight = null;
+    const finish = body => {
+      const h = head; head = null;
+      if (!h) return;
+      const kind = (h.match(/^\s*(Highlight|Note|Bookmark)/i) || [])[1];
+      if (!kind) { skipped.other++; return; }
+      if (/bookmark/i.test(kind)) { skipped.bookmarks++; return; }
+      const text = (body || "").trim();
+      if (!text) { skipped.empty++; return; }
+      const pageM = h.match(/\bPage\s+(\d+|[ivxlcdm]+)\b/i), locM = h.match(/\bLocation\s+(\d+)(?:\s*[-–]\s*(\d+))?/i);
+      const e = { title, author, type: /note/i.test(kind) ? "note" : "highlight", text, seq: entries.length,
+        page: pageM ? (/^\d+$/.test(pageM[1]) ? +pageM[1] : pageM[1]) : null, loc: locM ? [+locM[1], +(locM[2] || locM[1])] : null, date: null };
+      if (e.type === "highlight") lastHighlight = e;
+      else if (lastHighlight && e.loc && lastHighlight.loc && e.loc[0] >= lastHighlight.loc[0] && e.loc[0] - lastHighlight.loc[1] <= 25) {
+        e.loc = lastHighlight.loc; if (e.page == null) e.page = lastHighlight.page;
+      }
+      entries.push(e);
+    };
+    const re = /<div class="(noteHeading|noteText)">([\s\S]*?)<\/div>/g;
+    let m;
+    while ((m = re.exec(html))) {
+      if (m[1] === "noteHeading") { finish(null); head = htmlText(m[2]).replace(/\s+/g, " ").trim(); }
+      else finish(htmlText(m[2]));
+    }
+    finish(null);
+    return { entries, skipped };
+  }
+
   const locString = loc => (loc ? (loc[0] === loc[1] ? `Loc ${loc[0]}` : `Loc ${loc[0]}-${loc[1]}`) : null);
   const overlaps = (a, b) => !!(a && b) && a[0] <= b[1] && b[0] <= a[1];
   // Two passages that are versions of one another: one contains the other, or they share an end.
@@ -227,5 +273,5 @@
     return out;
   }
 
-  return { kindleNotes, parseClippings, buildBooks, planImport, applyImport, parseDate, splitTitle };
+  return { kindleNotes, parseClippings, parseNotebook, isNotebookHtml, buildBooks, planImport, applyImport, parseDate, splitTitle };
 });
