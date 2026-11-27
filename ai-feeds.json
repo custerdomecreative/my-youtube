@@ -2,5 +2,7 @@
   { "name": "Transformer", "url": "https://www.transformernews.ai/feed", "fulltext": true },
   { "name": "Import AI", "url": "https://importai.substack.com/feed", "fulltext": true },
   { "name": "Simon Willison", "url": "https://simonwillison.net/atom/entries/", "fulltext": true },
-  { "name": "AI as Normal Technology", "url": "https://www.normaltech.ai/feed", "fulltext": true }
+  { "name": "AI as Normal Technology", "url": "https://www.normaltech.ai/feed", "fulltext": true },
+  { "name": "Programmable Mutter", "url": "https://www.programmablemutter.com/feed", "fulltext": true },
+  { "name": "BIG by Matt Stoller", "url": "https://www.thebignewsletter.com/feed", "fulltext": true }
 ]
