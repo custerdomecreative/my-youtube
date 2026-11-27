@@ -133,7 +133,9 @@ with a link to where the token is entered (Watch → Update now).
 - **Notes typed on the Kindle:** type them fast and messy. On import, Commonplace
   offers to have Claude tidy them (spelling, typos and obvious shorthand fixed;
   your words, meaning and length kept), using the Anthropic key on that device.
-  The note as typed is kept and shown underneath ("Typed on Kindle: …"). If you
+  The note as typed is kept and shown underneath ("Typed on Kindle: …"). Notes
+  saved without tidying can be tidied later from the book's page (Tidy Kindle
+  notes); it asks for the key if this device doesn't have it. If you
   later edit the note in the app, your version wins and a re-import never
   changes it.
 

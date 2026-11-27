@@ -331,5 +331,22 @@ Call the record_tags tool once with every passage's index. If you can't use the 
     setupView();
   }
 
-  window.CPSuggest = { panel, hasPending, tidyNotes, hasKey: () => !!get(KEY) };
+  // Ask for the key on its own (for tidying notes), then carry on.
+  function keyPrompt(box, onSaved) {
+    const { el, toast } = window.CPUI;
+    const input = el("input", { type: "password", placeholder: "sk-ant-…", autocomplete: "off", "aria-label": "Anthropic API key" });
+    box.replaceChildren(el("div", { class: "panel" },
+      el("p", { class: "hint", text: "Paste your Anthropic API key. It's kept on this device only, never synced or published, and only sent to Anthropic." }),
+      input,
+      el("div", { class: "row", style: "margin-top:12px" },
+        el("button", { class: "btn small primary", type: "button", text: "Save key", onclick: () => {
+          const v = input.value.trim();
+          if (!/^sk-ant-/.test(v)) return toast("That doesn't look like an Anthropic key (they start sk-ant-).");
+          set(KEY, v); box.replaceChildren(); onSaved();
+        } }),
+        el("button", { class: "btn small", type: "button", text: "Cancel", onclick: () => box.replaceChildren() }))));
+    input.focus();
+  }
+
+  window.CPSuggest = { panel, hasPending, tidyNotes, keyPrompt, hasKey: () => !!get(KEY) };
 })();

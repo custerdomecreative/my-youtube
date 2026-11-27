@@ -271,6 +271,8 @@
     const src = CP.getSource(id);
     if (!src) return el("div", {}, el("a", { class: "back", href: "#library", text: "← Library" }), el("p", { class: "hint", text: "That source isn't in your library yet." }));
     const picker = el("div");
+    // Notes typed on the Kindle that haven't been tidied yet, and that Aaron hasn't changed himself.
+    const untidied = src.highlights.filter(h => h.via === "kindle" && h.note && !h.noteOriginal && !h.noteEdited);
     const head = el("div", { class: "src-head" }, coverEl(src, "cover big"),
       el("div", {}, el("h2", { text: src.title }),
         el("div", { class: "hint", style: "margin:0", text: [src.author, plural(src.highlights.length, "highlight")].filter(Boolean).join(" · ") }),
@@ -280,6 +282,8 @@
           window.CPSuggest && src.highlights.length > 0 && el("button", { class: "btn small" + (CPSuggest.hasPending(src.id) ? " primary" : ""), type: "button",
             text: CPSuggest.hasPending(src.id) ? "Review suggested tags" : "Suggest tags",
             onclick: () => { if (picker.dataset.open === "suggest") { picker.replaceChildren(); picker.dataset.open = ""; render(); } else CPSuggest.panel(src, picker, render); } }),
+          window.CPSuggest && untidied.length > 0 && el("button", { class: "btn small", type: "button", text: `Tidy ${plural(untidied.length, "Kindle note")}`,
+            onclick: e => tidyBook(src, untidied, picker, e.currentTarget) }),
           src.kind === "book" && el("button", { class: "btn small", type: "button",
             text: CP.pinnedSourceId() === src.id ? "Unpin" : "Set as now reading",
             onclick: () => {
@@ -291,6 +295,17 @@
           src.url && el("a", { class: "btn small", href: src.url, rel: "noreferrer", target: "_blank", text: "Open article" }))));
     return el("div", {}, el("a", { class: "back", href: "#library", text: "← Library" }), head, picker,
       el("div", { class: "stack" }, CP.sortedHighlights(src).map(h => highlightCard(h.id))));
+  }
+  async function tidyBook(src, list, box, button) {
+    if (!CPSuggest.hasKey()) return CPSuggest.keyPrompt(box, () => tidyBook(src, list, box, button));
+    button.disabled = true; button.textContent = "Tidying notes…";
+    try {
+      const clean = await CPSuggest.tidyNotes(list.map(h => ({ book: src.title, passage: h.text, note: h.note })));
+      let changed = 0;
+      list.forEach((h, i) => { const v = clean[i] || h.note; if (v !== h.note) changed++; CP.setTidiedNote(src.id, h.id, v); });
+      toast(changed ? `Tidied ${plural(changed, "note")}. What you typed is kept underneath each one.` : "Those notes were already tidy.");
+    } catch (err) { toast(err.message); }
+    render();
   }
   function detailsEditor(src, box) {
     if (box.firstChild) { box.dataset.open = ""; return box.replaceChildren(); }
@@ -471,7 +486,7 @@
           changed.length > 14 && el("li", {}, el("span", { text: `and ${changed.length - 14} more books` }), el("span"))),
         canTidy && el("label", { class: "row", for: "tidy-notes", style: "gap:8px; font-size:15px; margin-top:14px; flex-wrap:nowrap; align-items:flex-start" }, tidy,
           `Tidy ${plural(notes.length, "note")} typed on the Kindle with Claude: fixes spelling and shorthand, keeps your words. The original is kept underneath.`),
-        notes.length > 0 && !canTidy && window.CPSuggest && el("p", { class: "hint", style: "margin-top:12px", text: "To have Claude tidy notes typed on the Kindle, add your Anthropic key on this device first (open a book → Suggest tags)." }),
+        notes.length > 0 && !canTidy && window.CPSuggest && el("p", { class: "hint", style: "margin-top:12px", text: "Notes typed on the Kindle can be tidied after saving: open the book and tap Tidy Kindle notes." }),
         el("div", { class: "row", style: "margin-top:16px" },
           el("button", { class: "btn primary", type: "button", disabled: nothing, text: nothing ? "Nothing new to save" : t.new ? `Save ${plural(t.new, "new highlight")}` : "Save updates", onclick: async e => {
             if (tidy && tidy.checked) {
