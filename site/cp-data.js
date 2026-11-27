@@ -166,6 +166,16 @@
     saveSource(src);
     return h;
   }
+  // Swap in a tidied version of a note typed on the Kindle, keeping the original. Not a hand edit, so it isn't marked as one.
+  function setTidiedNote(sourceId, hid, note) {
+    const src = sources[sourceId], h = src && src.highlights.find(x => x.id === hid);
+    if (!h || !h.note || h.noteEdited) return null;
+    if (!h.noteOriginal) h.noteOriginal = h.note;
+    h.note = note;
+    h.updated = nowIso();
+    saveSource(src);
+    return h;
+  }
   function deleteHighlight(sourceId, hid) {
     const src = sources[sourceId], h = src && src.highlights.find(x => x.id === hid);
     if (!h) return;
@@ -608,7 +618,7 @@
   return {
     THOUGHTS_ID, DAILY_MAX, hasToken: () => !!token(), init, sync, onChange, onStatus, getStatus, pendingCount,
     // sources and highlights
-    allSources, getSource, ensureSource, saveSource, updateSource, bulkTag, tidyTitles, cleanTitle, cleanAuthor, makeHighlight, addHighlight, updateHighlight, deleteHighlight, setCover, findHighlight,
+    allSources, getSource, ensureSource, saveSource, updateSource, bulkTag, tidyTitles, cleanTitle, cleanAuthor, makeHighlight, addHighlight, updateHighlight, setTidiedNote, deleteHighlight, setCover, findHighlight,
     allHighlights, allTags, lastHighlighted, sortedHighlights, hasHighlightData, search,
     // review
     getReview, reviewAction, undoReview, restoreToReview, dailyQueue, reviewedToday, pickDaily, nextReview,
