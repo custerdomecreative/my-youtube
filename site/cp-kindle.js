@@ -195,8 +195,11 @@
     for (const book of books) {
       let src = lib.getSource(book.id);
       if (!src) {   // the same book saved under a differently worded title (another export, another edition)
-        const key = bookKey(book.title, book.author, lib);
-        const twin = lib.allSources().find(s => s.kind === "book" && bookKey(s.title, s.author, lib) === key);
+        // Same title; same author too, unless one of them was saved without one. Emptied (merged) entries don't count.
+        const [t, a] = bookKey(book.title, book.author, lib).split("|");
+        const twins = lib.allSources().filter(s => s.kind === "book" && s.highlights.length).map(s => [s, ...bookKey(s.title, s.author, lib).split("|")])
+          .filter(([, st, sa]) => st === t && (sa === a || !sa || !a));
+        const twin = (twins.find(([, , sa]) => sa === a) || twins[0] || [])[0];
         if (twin) { book.id = twin.id; src = twin; }
       }
       const existing = src ? src.highlights : [];
